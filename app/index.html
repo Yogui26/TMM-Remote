@@ -35,7 +35,7 @@ button.sc:active{background:var(--card2)}
 .sc .ic{font-size:28px;line-height:1}
 .sc b{display:block;font-size:16px}
 .sc small{color:var(--mut)}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{min-height:64px;border:0;background:transparent;color:var(--mut);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
 nav button span{font-size:22px;line-height:1}
 nav button.on{color:var(--acc);font-weight:700}
@@ -77,6 +77,28 @@ pre{margin:0;padding:12px;border-radius:12px;background:var(--card2);overflow:au
 @media (min-width:700px){.back{align-items:center}.sheet{border-radius:22px}}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;max-width:90vw}
 .empty{color:var(--mut);text-align:center;padding:30px 10px}
+.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;background:var(--card);padding:5px;border-radius:14px;border:1px solid var(--line)}
+.tabs button{min-height:44px;border:0;border-radius:10px;background:transparent;font-weight:600}
+.tabs button.on{background:var(--acc);color:var(--accfg)}
+.li{display:flex;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px;min-height:110px}
+.li:active{background:var(--card2)}
+.po{width:60px;height:90px;flex:none;border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:26px;overflow:hidden}
+.po img{width:100%;height:100%;object-fit:cover}
+.po.big{width:90px;height:135px;font-size:34px}
+.lt{min-width:0;display:flex;flex-direction:column;gap:4px;flex:1}
+.lt b{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.lt small{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+.bd i{font-style:normal;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
+.bd i.g{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+.bd i.r{background:color-mix(in srgb,var(--err) 20%,transparent);color:var(--err)}
+.ihead{display:flex;gap:14px;align-items:flex-start}
+.tlog{max-height:55dvh;min-height:200px;font-size:12px}
+.lv-e{color:var(--err)}.lv-w{color:var(--warn)}
+details summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--mut)}
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
+.acts .btn{min-width:0}
+nav button{font-size:11px}
 </style>
 </head>
 <body>
@@ -235,7 +257,13 @@ const state = {
   log: store.get('tmm.log', []),
   openLog: -1,
   sheet: null,
-  testMsg: ''
+  testMsg: '',
+  // bibliothèque (lecture seule, via l'indexeur /lib/) et log de tinyMediaManager
+  lib: { status: null, items: { movie: null, tvshow: null }, loading: false, err: '', q: '', filter: 'all', sort: 'title', limit: 60 },
+  item: null,
+  logTab: 'cmd',
+  logUntil: 0,
+  logv: { lines: [], filter: 'all', live: false, loaded: false, busy: false, err: '', ts: 0 }
 };
 const saveSettings = () => store.set('tmm.settings', state.settings);
 const saveLog = () => store.set('tmm.log', state.log.slice(0, 40));
@@ -331,22 +359,149 @@ function toast(msg) {
   const el = $('#toast'); el.innerHTML = '<div class="toast">' + esc(msg) + '</div>';
   clearTimeout(toast.t); toast.t = setTimeout(() => el.innerHTML = '', 2200);
 }
-const NAV = [['home','🏠','Scénarios'],['build','🛠️','Construire'],['log','🕘','Journal'],['set','⚙️','Réglages']];
+const hasLib = () => { const S = state.lib.status; return !!(S && S.enabled && S.media); };
+const hasTmmLog = () => { const S = state.lib.status; return !!(S && S.logs && S.logs.length); };
+function navItems() {
+  return [['home','🏠','Scénarios'], ...(hasLib() ? [['lib','🗂️','Biblio']] : []),
+          ['build','🛠️','Construire'], ['log','🕘','Journal'], ['set','⚙️','Réglages']];
+}
 
 function render() {
+  if (state.view === 'lib' && !hasLib()) state.view = 'home';
   $('#seg').innerHTML = Object.entries(MODULES).map(([k, m]) =>
     `<button data-act="module" data-v="${k}" class="${state.module === k ? 'on' : ''}">${m.label}</button>`).join('');
-  $('#nav').innerHTML = NAV.map(([k, ic, l]) => {
+  $('#nav').innerHTML = navItems().map(([k, ic, l]) => {
     const badge = k === 'build' && state.steps[state.module].length ? ` (${state.steps[state.module].length})` : '';
     return `<button data-act="view" data-v="${k}" class="${state.view === k ? 'on' : ''}"><span>${ic}</span>${l}${badge}</button>`;
   }).join('');
-  const views = { home: vHome, build: vBuild, log: vLog, set: vSet };
+  const views = { home: vHome, lib: vLib, build: vBuild, log: vLog, set: vSet };
   const keep = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.in : null;
+  const scroller = state.view === 'log' ? $('#tmmlog') : null, oldTop = scroller ? scroller.scrollTop : 0;
   $('#main').innerHTML = views[state.view]();
   if (keep) { const el = $('[data-in="' + keep + '"]'); if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch {} } }
-  $('#overlay').innerHTML = state.sheet ? vSheet() : '';
+  $('#overlay').innerHTML = state.sheet ? vSheet() : state.item ? vItem() : '';
   if (state.view === 'build') updatePreview();
+  if (state.view === 'log' && state.logTab === 'tmm' && hasTmmLog()) {
+    const el = $('#tmmlog'); if (el) el.scrollTop = oldTop || el.scrollHeight;
+    if (!state.logv.loaded && !state.logv.busy) { state.logv.loaded = true; loadLog(); }
+  }
 }
+
+/* ---------- bibliothèque (lecture seule) ---------- */
+async function loadStatus() {
+  try { const r = await fetch('lib/api/status'); if (!r.ok) throw new Error(r.status); state.lib.status = await r.json(); }
+  catch { state.lib.status = { enabled: false }; }
+  render();
+}
+function ensureLib(refresh) {
+  const L = state.lib, mod = state.module;
+  if (!hasLib() || mod === 'movieset' || L.loading) return;
+  if (L.items[mod] === null || refresh) loadLib(mod, !!refresh);
+}
+async function loadLib(kind, refresh) {
+  const L = state.lib; L.loading = true; L.err = ''; render();
+  try {
+    const r = await fetch('lib/api/library?kind=' + kind + (refresh ? '&refresh=1' : ''));
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+    L.items[kind] = j.items; L.limit = 60;
+  } catch (e) { L.err = 'Lecture de la bibliothèque impossible : ' + e.message; if (L.items[kind] === null) L.items[kind] = []; }
+  L.loading = false; render();
+}
+function libFiltered() {
+  const L = state.lib, all = L.items[state.module] || [], q = L.q.trim().toLowerCase();
+  let r = all.filter(i => !q || (i.title + ' ' + i.folder + ' ' + i.year).toLowerCase().includes(q));
+  if (L.filter === 'nonfo') r = r.filter(i => !i.has_nfo);
+  else if (L.filter === 'noposter') r = r.filter(i => !i.has_poster);
+  else if (L.filter === 'nosubs') r = r.filter(i => !i.subs.length);
+  if (L.sort === 'recent') r = [...r].sort((a, b) => b.added - a.added);
+  return r;
+}
+const imgUrl = p => 'lib/img?p=' + encodeURIComponent(p);
+const badge = (ok, label) => `<i class="${ok ? 'g' : 'r'}">${label}</i>`;
+function vLib() {
+  const L = state.lib, mod = state.module;
+  if (mod === 'movieset') return '<div class="empty">La bibliothèque est disponible pour les films et les séries.<br>Choisissez Films ou Séries en haut.</div>';
+  if (L.items[mod] === null || (L.loading && !(L.items[mod] || []).length))
+    return '<div class="empty">Lecture de la bibliothèque…<br><small>Le premier passage peut être long si les disques sont en veille.</small></div>';
+  const list = libFiltered(), shown = list.slice(0, L.limit), total = (L.items[mod] || []).length;
+  const chip = (act, v, cur, label) => `<button class="chip ${cur === v ? 'on' : ''}" data-act="${act}" data-v="${v}">${label}</button>`;
+  return `<div class="card"><input type="text" data-in="lib:q" value="${esc(L.q)}" placeholder="Rechercher un titre, un dossier…" autocapitalize="off" autocomplete="off" style="margin-top:0">
+    <div class="chips" style="margin-top:10px">${chip('libFilter','all',L.filter,'Tous')}${chip('libFilter','nonfo',L.filter,'Sans NFO')}${chip('libFilter','noposter',L.filter,'Sans affiche')}${chip('libFilter','nosubs',L.filter,'Sans sous-titres')}</div>
+    <div class="chips" style="margin-top:8px">${chip('libSort','title',L.sort,'A → Z')}${chip('libSort','recent',L.sort,'Récents')}<button class="chip" data-act="libRefresh">↻ Rescanner</button></div>
+    <div class="hint">${list.length} sur ${total} ${mod === 'movie' ? 'films' : 'séries'}${L.loading ? ' · mise à jour…' : ''}</div>
+    ${L.err ? `<div class="err">${esc(L.err)}</div>` : ''}</div>
+  <div class="grid">${shown.map(i => `<button class="li" data-act="openItem" data-id="${esc(i.id)}"><span class="po">${i.poster ? `<img loading="lazy" alt="" src="${esc(imgUrl(i.poster))}">` : (mod === 'movie' ? '🎬' : '📺')}</span>
+    <span class="lt"><b>${esc(i.title)}${i.year ? ' (' + esc(i.year) + ')' : ''}</b><small>${esc(i.folder)}</small>
+    ${mod === 'tvshow' ? `<small>${i.seasons || 0} saison(s) · ${i.videos} épisode(s)</small>` : ''}
+    <span class="bd">${badge(i.has_nfo, 'NFO')}${badge(i.has_poster, 'Affiche')}${badge(i.subs.length, 'Sous-titres')}${i.shared ? '<i class="r">Dossier partagé</i>' : ''}</span></span></button>`).join('')}</div>
+  ${list.length > shown.length ? `<div class="row"><button class="btn" data-act="libMore">Afficher plus (${list.length - shown.length})</button></div>` : ''}
+  ${!list.length ? '<div class="empty">Aucun résultat.</div>' : ''}`;
+}
+
+const ITEM_ACTIONS = [['scrape','🔍 Scraper'],['downloadMissingArtwork','🖼️ Images manquantes'],['downloadSubtitle','💬 Sous-titres'],['rename','✏️ Renommer'],['writeNfo','📝 Écrire le NFO'],['readNfo','📄 Relire le NFO']];
+function fmtSize(n) { if (!n) return ''; const u = ['o','Ko','Mo','Go','To']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return n.toFixed(i > 1 ? 1 : 0) + ' ' + u[i]; }
+function vItem() {
+  const b = state.item.base, d = state.item.detail || {}, kind = b.kind;
+  const meta = [d.runtime ? d.runtime + ' min' : '', d.rating || b.rating ? '⭐ ' + (d.rating || b.rating) : '', (d.genres || []).join(', ')].filter(Boolean).join(' · ');
+  const blocked = b.shared || !b.id;
+  const seasons = (d.seasons || []).map(s => `<div class="step"><span class="t">${esc(s.name)}<small>${s.episodes} épisode(s) · NFO ${s.with_nfo}/${s.episodes} · ${s.subs} sous-titre(s)</small></span></div>`).join('');
+  const files = (d.files || []).map(f => `<div class="step"><span class="t">${esc(f.name)}${f.size ? `<small>${fmtSize(f.size)}</small>` : ''}</span></div>`).join('');
+  return `<div class="back" data-act="closeItem"><div class="sheet" data-stop="1">
+    <div class="ihead"><span class="po big">${b.poster ? `<img alt="" src="${esc(imgUrl(b.poster))}">` : (kind === 'movie' ? '🎬' : '📺')}</span>
+      <div style="min-width:0"><h3 style="font-size:18px;margin-bottom:6px">${esc(b.title)}${b.year ? ' (' + esc(b.year) + ')' : ''}</h3>
+      ${d.originaltitle && d.originaltitle !== b.title ? `<div class="hint" style="margin:0 0 4px">${esc(d.originaltitle)}</div>` : ''}
+      ${meta ? `<div class="hint" style="margin:0 0 6px">${esc(meta)}</div>` : ''}
+      <div class="bd">${badge(b.has_nfo, 'NFO')}${badge(b.has_poster, 'Affiche')}${badge(b.has_fanart, 'Fond')}${badge(b.subs.length, 'Sous-titres')}</div></div></div>
+    ${d.plot ? `<p style="margin:12px 0 0">${esc(d.plot)}</p>` : (state.item.detail ? '<div class="hint">Pas de synopsis (fiche non scrapée ?).</div>' : '<div class="hint">Chargement…</div>')}
+    <div class="hint" style="word-break:break-all">📁 ${esc(b.folder)}<br>Chemin côté tinyMediaManager : ${esc(b.tmm_path)}</div>
+    ${blocked ? '<div class="warn">Ce dossier contient plusieurs vidéos (ou la racine) : les actions ciblées sont désactivées pour ne pas toucher d’autres éléments.</div>'
+      : `<div class="acts">${ITEM_ACTIONS.map(([a, l]) => `<button class="btn" data-act="itemAction" data-v="${a}">${l}</button>`).join('')}</div>`}
+    ${kind === 'tvshow' && seasons ? `<details open><summary>Saisons (${(d.seasons || []).length})</summary>${seasons}</details>` : ''}
+    ${files ? `<details><summary>Fichiers du dossier (${(d.files || []).length})</summary>${files}</details>` : ''}
+    <div class="row"><button class="btn" data-act="closeItem">Fermer</button></div>
+  </div></div>`;
+}
+async function openItem(id) {
+  const base = (state.lib.items[state.module] || []).find(i => i.id === id);
+  if (!base) return;
+  state.item = { base, detail: null }; render();
+  try {
+    const r = await fetch('lib/api/item?kind=' + base.kind + '&id=' + encodeURIComponent(id));
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+    if (state.item && state.item.base === base) { state.item.detail = j; render(); }
+  } catch { if (state.item && state.item.base === base) { state.item.detail = {}; render(); } }
+}
+
+/* ---------- log de tinyMediaManager ---------- */
+const LOG_FILTERS = { all: null, warn: /\b(ERROR|WARN)\b/, rename: /renam/i, scrape: /scrap/i };
+function logHtml() {
+  const V = state.logv;
+  if (V.err) return esc(V.err);
+  if (!V.lines.length) return V.busy || !V.loaded ? 'Chargement…' : '(log vide)';
+  const re = LOG_FILTERS[V.filter];
+  return V.lines.filter(l => !re || re.test(l)).slice(-400)
+    .map(l => `<span class="${/\bERROR\b/.test(l) ? 'lv-e' : /\bWARN\b/.test(l) ? 'lv-w' : ''}">${esc(l)}</span>`).join('\n') || '(aucune ligne pour ce filtre)';
+}
+function paintLog() {
+  const el = $('#tmmlog'); if (!el) return;
+  const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  el.innerHTML = logHtml();
+  if (near) el.scrollTop = el.scrollHeight;
+  const ts = $('#logts'); if (ts) ts.textContent = state.logv.ts ? 'Mis à jour à ' + new Date(state.logv.ts).toLocaleTimeString('fr-FR') : '';
+}
+async function loadLog() {
+  const V = state.logv; if (V.busy) return; V.busy = true;
+  try {
+    const r = await fetch('lib/api/log?lines=500'); const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    V.lines = j.lines; V.err = ''; V.ts = Date.now();
+  } catch (e) { V.err = 'Log indisponible : ' + e.message; }
+  V.busy = false; paintLog();
+}
+setInterval(() => {
+  if (document.hidden || state.view !== 'log' || state.logTab !== 'tmm' || !hasTmmLog()) return;
+  if (state.logv.live || Date.now() < state.logUntil) loadLog();
+}, 3000);
 
 function vHome() {
   const list = scenarios(state.module);
@@ -385,6 +540,23 @@ function updatePreview() {
 }
 
 function vLog() {
+  const both = hasTmmLog();
+  const tabs = both ? `<div class="tabs"><button data-act="logTab" data-v="cmd" class="${state.logTab === 'cmd' ? 'on' : ''}">Commandes</button><button data-act="logTab" data-v="tmm" class="${state.logTab === 'tmm' ? 'on' : ''}">Log tinyMediaManager</button></div>` : '';
+  return tabs + (both && state.logTab === 'tmm' ? vTmmLog() : vCmdLog());
+}
+function vTmmLog() {
+  const V = state.logv, last = state.log[0];
+  const lb = last ? (last.status === 'ok' ? 'acceptée (HTTP ' + last.http + ')' : last.status === 'wait' ? 'en cours d’envoi…' : 'échec de l’envoi') : '';
+  const f = (v, l) => `<button class="chip ${V.filter === v ? 'on' : ''}" data-act="logFilter" data-v="${v}">${l}</button>`;
+  return `<div class="card"><h3>Log de tinyMediaManager</h3>
+    ${last ? `<div class="hint" style="margin:0 0 10px">Dernière commande : ${new Date(last.t).toLocaleTimeString('fr-FR')} · ${lb}. « Acceptée » veut seulement dire mise en file d’attente : le résultat réel se lit ci-dessous.</div>` : ''}
+    <div class="chips">${f('all', 'Tout')}${f('warn', 'Erreurs et alertes')}${f('rename', 'Renommage')}${f('scrape', 'Scrape')}</div>
+    <button class="tg" data-act="logLive"><span>Suivre en direct (toutes les 3 s)</span><span class="sw ${V.live ? 'on' : ''}"></span></button>
+    <pre id="tmmlog" class="tlog" style="margin-top:10px">${logHtml()}</pre>
+    <div class="hint" id="logts">${V.ts ? 'Mis à jour à ' + new Date(V.ts).toLocaleTimeString('fr-FR') : ''}${Date.now() < state.logUntil ? ' · suivi automatique après l’envoi d’une commande' : ''}</div>
+    <div class="row"><button class="btn" data-act="logRefresh">↻ Actualiser</button></div></div>`;
+}
+function vCmdLog() {
   if (!state.log.length) return '<div class="empty">Aucune commande envoyée pour l’instant.</div>';
   return `<div class="row" style="margin:0"><button class="btn d" data-act="clearLog">Vider le journal</button></div>` + state.log.map((e, i) => {
     const b = e.status === 'ok' ? '<span class="badge b-ok">OK ' + e.http + '</span>' : e.status === 'wait' ? '<span class="badge b-wait">en cours…</span>' : '<span class="badge b-err">Échec' + (e.http ? ' ' + e.http : '') + '</span>';
@@ -397,7 +569,10 @@ function vLog() {
 }
 
 function vSet() {
-  const s = state.settings;
+  const s = state.settings, S = state.lib.status;
+  const libCard = S && S.enabled
+    ? `<div class="card"><h3>Bibliothèque et logs</h3><div class="hint" style="margin:0">Médias : ${S.media ? '✓ montés' : '✗ non montés (/media)'}<br>Logs de tinyMediaManager : ${(S.logs || []).length ? '✓ ' + esc(S.logs.join(', ')) : '✗ non montés (/data)'}<br>Chemin des médias côté tinyMediaManager : ${esc(S.tmm_media_path)}</div></div>`
+    : `<div class="card"><h3>Bibliothèque et logs</h3><div class="hint" style="margin:0">Non disponible. Montez vos médias sur /media et le dossier de données de tinyMediaManager sur /data (en lecture seule) dans le conteneur TMM Remote.</div></div>`;
   return `<div class="card"><h3>Connexion</h3>
     <label class="f">URL de l’API<input type="text" data-in="set:base" value="${esc(s.base)}" autocapitalize="off" autocomplete="off" placeholder="/api"></label>
     <div class="hint">« /api » si vous utilisez le proxy fourni (recommandé : il ajoute la clé et évite les blocages CORS). Sinon : http://serveur:7878/api</div>
@@ -405,6 +580,7 @@ function vSet() {
     <label class="f">Langue des sous-titres par défaut<input type="text" data-in="set:lang" value="${esc(s.lang)}" placeholder="fr" autocapitalize="off"></label>
     <div class="row"><button class="btn p" data-act="test">Tester la connexion</button></div>
     ${state.testMsg ? `<div class="${state.testMsg[0] === '✓' ? '' : 'warn'}" style="margin-top:10px">${esc(state.testMsg)}</div>` : ''}</div>
+  ${libCard}
   <div class="card"><h3>Installer sur l’écran d’accueil</h3><div class="hint">iPhone / iPad : Partager → « Sur l’écran d’accueil ». Android : menu ⋮ → « Installer l’application ». (Nécessite HTTPS ou localhost pour le mode hors-ligne.)</div></div>`;
 }
 
@@ -421,12 +597,32 @@ function vSheet() {
 
 /* ---------- événements ---------- */
 const H = {
-  module(d) { state.module = d.v; store.set('tmm.module', d.v); state.draft = null; render(); },
-  view(d) { state.view = d.v; render(); },
+  module(d) { state.module = d.v; store.set('tmm.module', d.v); state.draft = null; if (state.view === 'lib') ensureLib(); render(); },
+  view(d) { state.view = d.v; if (d.v === 'lib') ensureLib(); render(); },
+  openItem(d) { openItem(d.id); },
+  closeItem() { state.item = null; render(); },
+  itemAction(d) {
+    const it = state.item.base, step = { action: d.v, scope: { name: 'path', args: [it.tmm_path] } };
+    if (d.v === 'downloadSubtitle') step.args = { language: state.settings.lang || 'fr' };
+    const label = ITEM_ACTIONS.find(x => x[0] === d.v)[1];
+    state.item = null; state.sheet = { mod: it.kind, steps: [step], title: label + ' — ' + it.title }; render();
+  },
+  libFilter(d) { state.lib.filter = d.v; state.lib.limit = 60; render(); },
+  libSort(d) { state.lib.sort = d.v; render(); },
+  libMore() { state.lib.limit += 60; render(); },
+  libRefresh() { ensureLib(true); },
+  logTab(d) { state.logTab = d.v; state.logv.loaded = false; render(); },
+  logFilter(d) { state.logv.filter = d.v; render(); },
+  logLive() { state.logv.live = !state.logv.live; render(); },
+  logRefresh() { loadLog(); },
   scenario(d) { const sc = scenarios(state.module)[+d.i]; state.sheet = { mod: state.module, steps: sc.steps, title: sc.title }; render(); },
   closeSheet(d, el, e) { if (e.target.closest('[data-stop]') && !e.target.closest('button')) return; state.sheet = null; render(); },
   editSheet() { state.steps[state.sheet.mod] = JSON.parse(JSON.stringify(state.sheet.steps)); state.module = state.sheet.mod; state.sheet = null; state.view = 'build'; render(); },
-  go() { const { mod, steps } = state.sheet; state.sheet = null; state.view = 'log'; run(mod, steps); },
+  go() {
+    const { mod, steps } = state.sheet; state.sheet = null; state.view = 'log';
+    state.logUntil = Date.now() + 120000; state.logTab = hasTmmLog() ? 'tmm' : 'cmd'; state.logv.loaded = false;
+    run(mod, steps);
+  },
   pickAction(d) { resetDraft(d.v); render(); },
   pickScope(d) { state.draft.scope = d.v; render(); },
   toggle(d) { const g = findAction(state.module, state.draft.action).args.find(x => x.k === d.k); const cur = state.draft.args[d.k]; state.draft.args[d.k] = !(cur === undefined ? g.def : cur); render(); },
@@ -442,7 +638,7 @@ const H = {
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]');
   if (!t || !H[t.dataset.act]) return;
-  if (t.dataset.act === 'closeSheet' && t.classList.contains('back') && e.target.closest('[data-stop]')) return;
+  if (t.classList.contains('back') && e.target !== t) return; // clic dans la feuille, pas sur le fond
   H[t.dataset.act](t.dataset, t, e);
 });
 document.addEventListener('input', e => {
@@ -451,10 +647,12 @@ document.addEventListener('input', e => {
   if (k === 'scopeArgs') state.draft.scopeArgs = t.value;
   else if (k.startsWith('arg:')) state.draft.args[k.slice(4)] = t.value;
   else if (k.startsWith('set:')) { state.settings[k.slice(4)] = t.value; saveSettings(); }
+  else if (k === 'lib:q') { state.lib.q = t.value; state.lib.limit = 60; render(); return; }
   if (state.view === 'build') updatePreview();
 });
 
 render();
+loadStatus();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

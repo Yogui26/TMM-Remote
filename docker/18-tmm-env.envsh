@@ -24,7 +24,11 @@ case "$TMM_HOST" in
 esac
 
 TMM_API_KEY=$(tmm_clean "${TMM_API_KEY-}")
-export TMM_HOST TMM_API_KEY
+
+# Chemin des médias vu par tinyMediaManager (sans « / » final ; /media par défaut)
+TMM_MEDIA_PATH=$(tmm_clean "${TMM_MEDIA_PATH-}" | sed -e 's#/*$##')
+[ -n "$TMM_MEDIA_PATH" ] || TMM_MEDIA_PATH="/media"
+export TMM_HOST TMM_API_KEY TMM_MEDIA_PATH
 
 echo "tmm-remote: API tinyMediaManager -> http://${TMM_HOST}/api/"
 if [ "$tmm_raw_host" != "$TMM_HOST" ]; then

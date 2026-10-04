@@ -10,6 +10,12 @@ services:
       TMM_HOST: ${TMM_HOST:-tinymediamanager:7878}
       # Clé API définie dans tinyMediaManager (Réglages > Général > API HTTP)
       TMM_API_KEY: ${TMM_API_KEY:?Renseignez TMM_API_KEY dans le fichier .env}
+      # Chemin des médias tel que le voit le conteneur tinyMediaManager
+      TMM_MEDIA_PATH: ${TMM_MEDIA_PATH:-/media}
+    # Facultatif, en lecture seule : active l'onglet Biblio et le log de tinyMediaManager
+    # volumes:
+    #   - /chemin/vers/vos/medias:/media:ro
+    #   - /chemin/vers/tinymediamanager/data:/data:ro
     networks:
       - tmm
 

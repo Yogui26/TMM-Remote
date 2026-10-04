@@ -1,5 +1,5 @@
-// Cache minimal de l'interface. Les appels /api ne sont jamais mis en cache.
-const CACHE = 'tmm-remote-v1';
+// Cache minimal de l'interface. Les appels /api et /lib ne sont jamais mis en cache.
+const CACHE = 'tmm-remote-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -10,7 +10,7 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.includes('/api/')) return;
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.includes('/api/') || url.pathname.includes('/lib/')) return;
   // réseau d'abord, cache en secours : les mises à jour de l'appli arrivent tout de suite
   e.respondWith(
     fetch(e.request).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
