@@ -20,8 +20,10 @@ Pour compléter, l'appli peut lire (en lecture seule) vos médias et les logs de
 - **Construire** : choisir action, portée et options, empiler plusieurs étapes dans une
   séquence envoyée en un seul appel (nécessaire pour que « Nouveaux » fonctionne).
 - **Journal** : historique des envois (bouton « Rejouer ») et, *si `/data` est monté*, le log de
-  tinyMediaManager avec filtres (erreurs, renommage, scrape) et suivi en direct : c'est là qu'on
-  voit si un renommage a réellement eu lieu.
+  tinyMediaManager en **vue lisible** (séquences d'étapes : mise à jour, scrape, images, renommage…,
+  résultat film par film, ancien → nouveau nom, scores rejetés, annulations, alertes dédupliquées)
+  ou en **log brut** (bascule 📖 / 🧾), avec filtres et suivi en direct : c'est là qu'on voit si un
+  renommage a réellement eu lieu.
 - **Réglages** : URL, clé API, langue des sous-titres, test de connexion, état des montages.
 
 ## Déploiement (Docker, recommandé)
@@ -84,7 +86,9 @@ uniquement, joignable seulement via nginx) lit :
   (`backdrop`, `fanart`, `background`), les sous-titres et les vidéos. Un film dont le
   dossier n'a pas de NFO apparaît comme « non scrapé » ; une série sans `tvshow.nfo` est reconnue
   à ses dossiers de saisons ou à ses noms `S01E02`.
-- `/data/logs/*.log` : les logs de tinyMediaManager (`tmm.log` par défaut).
+- `/data/logs/*.log` : les logs de tinyMediaManager (`tmm.log` par défaut). La vue lisible analyse
+  jusqu'aux 16 derniers Mo (même en niveau TRACE) ; elle reconnaît les messages de tinyMediaManager 5.x
+  (le log brut reste disponible pour tout le reste).
 
 Le montage doit être en **lecture seule** (`:ro`) : le service n'écrit jamais rien et ne sort pas
 de ces dossiers. Le premier affichage de la bibliothèque parcourt tous les dossiers, ce qui peut

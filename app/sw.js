@@ -1,5 +1,5 @@
 // Cache minimal de l'interface. Les appels /api et /lib ne sont jamais mis en cache.
-const CACHE = 'tmm-remote-v2';
+const CACHE = 'tmm-remote-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

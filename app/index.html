@@ -95,6 +95,21 @@ pre{margin:0;padding:12px;border-radius:12px;background:var(--card2);overflow:au
 .ihead{display:flex;gap:14px;align-items:flex-start}
 .tlog{max-height:55dvh;min-height:200px;font-size:12px}
 .lv-e{color:var(--err)}.lv-w{color:var(--warn)}
+.b-warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn)}
+.seq{padding:0;overflow:hidden}
+.seq>button{all:unset;display:flex;gap:10px;align-items:flex-start;width:100%;box-sizing:border-box;padding:12px 14px;cursor:pointer;min-height:44px}
+.seq .sh{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.seq .sh b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seq .sh small,.stp small{color:var(--mut)}
+.seq .body{border-top:1px solid var(--line);padding:4px 14px 12px}
+.stp{padding:10px 0;border-bottom:1px solid var(--line)}
+.stp:last-child{border-bottom:0}
+.stp .sl{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.stp ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.stp li{display:flex;gap:6px;align-items:flex-start}
+.stp li span:last-child{min-width:0;overflow-wrap:anywhere}
+.stp li em{font-style:normal;color:var(--mut)}
+.alr{display:flex;gap:6px;align-items:flex-start;font-size:13px;padding:4px 0;overflow-wrap:anywhere}
 details summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--mut)}
 .acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
 .acts .btn{min-width:0}
@@ -256,7 +271,7 @@ const state = {
   item: null,
   logTab: 'cmd',
   logUntil: 0,
-  logv: { lines: [], filter: 'all', live: false, loaded: false, busy: false, err: '', ts: 0 }
+  logv: { lines: [], filter: 'all', live: false, loaded: false, busy: false, err: '', ts: 0, mode: 'read', view: null, open: {} }
 };
 const saveSettings = () => store.set('tmm.settings', state.settings);
 const saveLog = () => store.set('tmm.log', state.log.slice(0, 40));
@@ -477,19 +492,73 @@ function logHtml() {
   return V.lines.filter(l => !re || re.test(l)).slice(-400)
     .map(l => `<span class="${/\bERROR\b/.test(l) ? 'lv-e' : /\bWARN\b/.test(l) ? 'lv-w' : ''}">${esc(l)}</span>`).join('\n') || '(aucune ligne pour ce filtre)';
 }
+
+/* vue lisible : séquences d'étapes analysées par le service (lib/api/logview) */
+const KIND_IC = { startup: '🚀', update: '🔄', scrape: '🔎', artwork: '🖼️', rename: '✏️', nfo: '📝', clean: '🧹', post: '⚙️', kodi: '📺', api: '⚙️', misc: '💬' };
+const ST_IC = { ok: '✅', info: '•', warn: '⚠️', err: '❌' };
+const ST_LB = { ok: 'OK', warn: 'À vérifier', err: 'Erreur' };
+function fmtTs(t) { return t ? t.slice(8, 10) + '/' + t.slice(5, 7) + ' ' + t.slice(11, 19) : ''; }
+function fmtMs(ms) { return ms == null ? '' : ms < 1000 ? ms + ' ms' : ms < 60000 ? (ms / 1000).toFixed(1).replace('.', ',') + ' s' : Math.floor(ms / 60000) + ' min ' + Math.round(ms % 60000 / 1000) + ' s'; }
+function stBadge(st) { return `<span class="badge b-${st === 'ok' ? 'ok' : st === 'err' ? 'err' : 'warn'}">${ST_LB[st] || st}</span>`; }
+function stepHtml(st) {
+  const items = st.items.filter(i => i.status !== 'info' || i.note);
+  const shown = items.slice(0, 30);
+  const li = i => `<li><span>${ST_IC[i.status] || '•'}</span><span><b>${esc(i.name)}</b>${i.note ? ` <em>${esc(i.note)}</em>` : ''}</span></li>`;
+  const more = st.items.length - shown.length;
+  return `<div class="stp"><div class="sl"><b>${KIND_IC[st.kind] || '•'} ${esc(st.title)}</b>${st.status === 'ok' ? '' : stBadge(st.status)}</div>
+    <small>${fmtTs(st.start).slice(6)}${st.ms != null ? ' · ' + fmtMs(st.ms) : ''}${st.summary.length ? ' · ' + esc(st.summary.join(', ')) : ''}${st.origin ? ' · via ' + esc(st.origin) : ''}${!st.done && st.kind !== 'misc' ? ' · non terminé dans le log' : ''}</small>
+    ${shown.length ? `<ul>${shown.map(li).join('')}</ul>` : ''}${more > 0 ? `<div class="hint" style="margin:4px 0 0">+ ${more} autre(s) élément(s) — voir le log brut</div>` : ''}
+    ${st.notes.length ? `<ul>${st.notes.map(n => `<li><span>${n.lvl === 'err' ? '❌' : n.lvl === 'warn' ? '⚠️' : 'ℹ️'}</span><span>${esc(n.text)}${n.more ? `<br><small>${esc(n.more.join(' ⏎ ')).slice(0, 300)}</small>` : ''}</span></li>`).join('')}</ul>` : ''}</div>`;
+}
+function seqTitle(q) {
+  if (q.names.length) return q.names.join(' · ') + (q.total > q.names.length ? ' (+' + (q.total - q.names.length) + ')' : '');
+  return q.steps[0].title;
+}
+function readHtml() {
+  const V = state.logv, D = V.view;
+  if (V.err) return `<div class="empty">${esc(V.err)}</div>`;
+  if (!D) return `<div class="empty">${V.busy || !V.loaded ? 'Analyse du log…' : '(rien à afficher)'}</div>`;
+  const f = V.filter;
+  let seqs = D.sequences;
+  if (f === 'warn') seqs = seqs.filter(q => q.status !== 'ok');
+  else if (f === 'rename') seqs = seqs.filter(q => q.steps.some(x => x.kind === 'rename'));
+  else if (f === 'scrape') seqs = seqs.filter(q => q.steps.some(x => x.kind === 'scrape'));
+  const alerts = D.alerts.length ? `<details class="card" style="padding:0 14px"><summary>⚠️ À surveiller : ${D.alerts.length} alerte(s) récurrente(s) ou hors tâche</summary>
+    ${D.alerts.map(a => `<div class="alr"><span>${a.lvl === 'err' ? '❌' : '⚠️'}</span><span>${esc(a.text)}<br><small style="color:var(--mut)">${a.count > 1 ? a.count + ' fois · ' : ''}dernière : ${fmtTs(a.last)}</small></span></div>`).join('')}</details>` : '';
+  const list = seqs.slice(0, 40).map(q => {
+    const key = q.start, open = key in V.open ? V.open[key] : (q === D.sequences[0] && f === 'all');
+    const icons = [...new Set(q.steps.map(x => KIND_IC[x.kind] || '•'))].join(' ');
+    return `<div class="card seq"><button data-act="logSeq" data-k="${esc(key)}" aria-expanded="${open}">
+      <span style="font-size:20px">${open ? '▾' : '▸'}</span>
+      <span class="sh"><b>${esc(seqTitle(q))}</b><small>${fmtTs(q.start)}${q.origin ? ' · ' + esc(q.origin) : ''} · ${icons}</small></span>${q.status === 'ok' ? '<span class="badge b-ok">OK</span>' : stBadge(q.status)}</button>
+      ${open ? `<div class="body">${q.steps.map(stepHtml).join('')}</div>` : ''}</div>`;
+  }).join('');
+  return alerts + (list || '<div class="empty">Aucune activité pour ce filtre dans la période lue.</div>')
+    + (D.truncated ? `<div class="hint">Analyse des 16 derniers Mo du log (${Math.round(D.size / 1e6)} Mo au total).</div>` : '');
+}
 function paintLog() {
-  const el = $('#tmmlog'); if (!el) return;
-  const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-  el.innerHTML = logHtml();
-  if (near) el.scrollTop = el.scrollHeight;
-  const ts = $('#logts'); if (ts) ts.textContent = state.logv.ts ? 'Mis à jour à ' + new Date(state.logv.ts).toLocaleTimeString('fr-FR') : '';
+  const V = state.logv;
+  const el = $(V.mode === 'raw' ? '#tmmlog' : '#tmmread'); if (!el) return;
+  if (V.mode === 'raw') {
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    el.innerHTML = logHtml();
+    if (near) el.scrollTop = el.scrollHeight;
+  } else el.innerHTML = readHtml();
+  const ts = $('#logts'); if (ts) ts.textContent = V.ts ? 'Mis à jour à ' + new Date(V.ts).toLocaleTimeString('fr-FR') : '';
 }
 async function loadLog() {
   const V = state.logv; if (V.busy) return; V.busy = true;
   try {
-    const r = await fetch('lib/api/log?lines=500'); const j = await r.json();
-    if (!r.ok) throw new Error(j.error || r.status);
-    V.lines = j.lines; V.err = ''; V.ts = Date.now();
+    if (V.mode === 'raw') {
+      const r = await fetch('lib/api/log?lines=500'); const j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.status);
+      V.lines = j.lines;
+    } else {
+      const r = await fetch('lib/api/logview'); const j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.status);
+      V.view = j;
+    }
+    V.err = ''; V.ts = Date.now();
   } catch (e) { V.err = 'Log indisponible : ' + e.message; }
   V.busy = false; paintLog();
 }
@@ -540,14 +609,16 @@ function vLog() {
   return tabs + (both && state.logTab === 'tmm' ? vTmmLog() : vCmdLog());
 }
 function vTmmLog() {
-  const V = state.logv, last = state.log[0];
+  const V = state.logv, last = state.log[0], raw = V.mode === 'raw';
   const lb = last ? (last.status === 'ok' ? 'acceptée (HTTP ' + last.http + ')' : last.status === 'wait' ? 'en cours d’envoi…' : 'échec de l’envoi') : '';
   const f = (v, l) => `<button class="chip ${V.filter === v ? 'on' : ''}" data-act="logFilter" data-v="${v}">${l}</button>`;
+  const m = (v, l) => `<button class="chip ${V.mode === v ? 'on' : ''}" data-act="logMode" data-v="${v}">${l}</button>`;
   return `<div class="card"><h3>Log de tinyMediaManager</h3>
     ${last ? `<div class="hint" style="margin:0 0 10px">Dernière commande : ${new Date(last.t).toLocaleTimeString('fr-FR')} · ${lb}. « Acceptée » veut seulement dire mise en file d’attente : le résultat réel se lit ci-dessous.</div>` : ''}
-    <div class="chips">${f('all', 'Tout')}${f('warn', 'Erreurs et alertes')}${f('rename', 'Renommage')}${f('scrape', 'Scrape')}</div>
+    <div class="chips" style="margin-bottom:10px">${m('read', '📖 Lisible')}${m('raw', '🧾 Log brut')}</div>
+    <div class="chips">${raw ? f('all', 'Tout') + f('warn', 'Erreurs et alertes') + f('rename', 'Renommage') + f('scrape', 'Scrape') : f('all', 'Tout') + f('warn', 'À vérifier') + f('rename', 'Renommage') + f('scrape', 'Scrape')}</div>
     <button class="tg" data-act="logLive"><span>Suivre en direct (toutes les 3 s)</span><span class="sw ${V.live ? 'on' : ''}"></span></button>
-    <pre id="tmmlog" class="tlog" style="margin-top:10px">${logHtml()}</pre>
+    ${raw ? `<pre id="tmmlog" class="tlog" style="margin-top:10px">${logHtml()}</pre>` : `<div id="tmmread" style="margin-top:10px">${readHtml()}</div>`}
     <div class="hint" id="logts">${V.ts ? 'Mis à jour à ' + new Date(V.ts).toLocaleTimeString('fr-FR') : ''}${Date.now() < state.logUntil ? ' · suivi automatique après l’envoi d’une commande' : ''}</div>
     <div class="row"><button class="btn" data-act="logRefresh">↻ Actualiser</button></div></div>`;
 }
@@ -608,6 +679,8 @@ const H = {
   libRefresh() { ensureLib(true); },
   logTab(d) { state.logTab = d.v; state.logv.loaded = false; render(); },
   logFilter(d) { state.logv.filter = d.v; render(); },
+  logMode(d) { state.logv.mode = d.v; state.logv.loaded = false; render(); },
+  logSeq(d) { const V = state.logv, q = V.view && V.view.sequences.find(x => x.start === d.k); const cur = d.k in V.open ? V.open[d.k] : (q === V.view.sequences[0] && V.filter === 'all'); V.open[d.k] = !cur; paintLog(); },
   logLive() { state.logv.live = !state.logv.live; render(); },
   logRefresh() { loadLog(); },
   scenario(d) { const sc = scenarios(state.module)[+d.i]; state.sheet = { mod: state.module, steps: sc.steps, title: sc.title }; render(); },

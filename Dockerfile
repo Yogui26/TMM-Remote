@@ -14,7 +14,7 @@ COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY docker/18-tmm-env.envsh /docker-entrypoint.d/18-tmm-env.envsh
 # Lance l'indexeur en arrière-plan avant nginx
 COPY docker/40-start-indexer.sh /docker-entrypoint.d/40-start-indexer.sh
-COPY indexer/indexer.py /opt/indexer/indexer.py
+COPY indexer/indexer.py indexer/logparse.py /opt/indexer/
 COPY app/ /usr/share/nginx/html/
 
 RUN sed -i 's/\r$//' /docker-entrypoint.d/18-tmm-env.envsh /docker-entrypoint.d/40-start-indexer.sh \

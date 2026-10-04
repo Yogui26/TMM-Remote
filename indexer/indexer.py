@@ -17,6 +17,8 @@ import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import logparse
+
 MEDIA_DIR = os.environ.get("MEDIA_DIR", "/media")
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
 # Chemin des médias tel que le voit le conteneur tinyMediaManager (pour les actions ciblées)
@@ -357,6 +359,21 @@ def read_log(name, lines):
     return {"file": name, "size": size, "mtime": mtime(path), "lines": rows[-lines:]}
 
 
+def read_log_view(name):
+    """Log analysé (séquences d'étapes + alertes) sur les ~16 derniers Mo."""
+    if name not in list_logs():
+        return None
+    path = next(os.path.join(d, name) for d in log_dirs() if os.path.isfile(os.path.join(d, name)))
+    size = os.path.getsize(path)
+    chunk = min(size, 16_000_000)
+    with open(path, "rb") as f:
+        f.seek(size - chunk)
+        data = f.read(chunk).decode("utf-8", errors="replace")
+    res = logparse.analyse(data)
+    res.update({"file": name, "size": size, "mtime": mtime(path), "truncated": size > chunk})
+    return res
+
+
 # --------------------------------------------------------------------- HTTP
 class Handler(BaseHTTPRequestHandler):
     server_version = "tmm-remote-indexer"
@@ -398,6 +415,11 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError:
                     lines = 300
                 d = read_log(name, lines) if name else None
+                return self.send_json(d) if d else self.send_json({"error": "log introuvable", "files": names}, 404)
+            if u.path == "/lib/api/logview":
+                names = list_logs()
+                name = q.get("file") or ("tmm.log" if "tmm.log" in names else (names[0] if names else ""))
+                d = read_log_view(name) if name else None
                 return self.send_json(d) if d else self.send_json({"error": "log introuvable", "files": names}, 404)
             if u.path == "/lib/img":
                 return self.send_image(q.get("p", ""))
