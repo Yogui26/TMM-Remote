@@ -1,24 +1,21 @@
 services:
   tmm-remote:
-    image: nginx:alpine
+    image: ghcr.io/yogui26/tmm-remote:latest   # ou une version précise, ex. :1.0.0
     container_name: tmm-remote
     restart: unless-stopped
     ports:
       - "8080:80"
     environment:
-      # nom du conteneur tinyMediaManager (ou IP) + port de l'API HTTP
-      TMM_HOST: "tinymediamanager:7878"
-      # clé API définie dans tinyMediaManager (Réglages > Général > API HTTP)
-      TMM_API_KEY: "CHANGEZ-MOI"
-    volumes:
-      - ./app:/usr/share/nginx/html:ro
-      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
-      # - ./.htpasswd:/etc/nginx/.htpasswd:ro   # si vous activez auth_basic
+      # Conteneur tinyMediaManager (nom ou IP) : port de l'API HTTP
+      TMM_HOST: ${TMM_HOST:-tinymediamanager:7878}
+      # Clé API définie dans tinyMediaManager (Réglages > Général > API HTTP)
+      TMM_API_KEY: ${TMM_API_KEY:?Renseignez TMM_API_KEY dans le fichier .env}
     networks:
-      - default
       - tmm
 
 networks:
   tmm:
+    # Réseau Docker où se trouve votre conteneur tinyMediaManager
+    # (docker network ls pour le retrouver ; souvent <dossier>_default)
     external: true
-    name: tmm_default   # réseau Docker où se trouve votre conteneur tinyMediaManager
+    name: ${TMM_NETWORK:-tmm_default}

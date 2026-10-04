@@ -19,20 +19,43 @@ télécommande, pas un navigateur de médiathèque.
 
 ## Déploiement (Docker, recommandé)
 
+L'image est publiée sur GitHub Container Registry (`linux/amd64`, `arm64`, `arm/v7`) :
+`ghcr.io/yogui26/tmm-remote` (tags `latest`, `main`, et `1.2.3` / `1.2` / `1` pour les releases).
+
 1. Dans tinyMediaManager, activez l'API HTTP et notez le port (7878 par défaut) et la clé.
-2. Éditez `docker-compose.yml` : `TMM_HOST` (nom du conteneur : port), `TMM_API_KEY`, et le
-   nom du réseau Docker partagé avec votre conteneur tinyMediaManager.
+2. Récupérez `docker-compose.yml` et `.env.example` de ce dépôt, copiez `.env.example` en
+   `.env`, puis renseignez `TMM_API_KEY` (et `TMM_HOST` / `TMM_NETWORK` si besoin :
+   nom du conteneur tinyMediaManager et réseau Docker qu'il utilise).
 3. `docker compose up -d`, puis ouvrez `http://serveur:8080`.
+
+Aucun volume n'est nécessaire : l'appli est dans l'image. Pour mettre à jour :
+`docker compose pull && docker compose up -d`.
 
 Le proxy nginx ajoute la clé API côté serveur (elle n'arrive jamais dans le navigateur) et
 évite les problèmes de CORS et de contenu mixte HTTP/HTTPS. Dans l'appli, laissez l'URL à `/api`.
 
+## Publier une nouvelle version
+
+Chaque push sur `main` met à jour `latest`. Pour une version figée, créez une release GitHub
+avec un tag `vX.Y.Z` (ex. `v1.0.0`) : le workflow `.github/workflows/docker.yml` construit et
+publie l'image `1.0.0`, `1.0`, `1` et `latest`.
+
+Si le paquet est privé après la première publication (Profil GitHub → Packages → tmm-remote →
+Package settings → Change visibility), passez-le en public pour que `docker pull` fonctionne
+sans identifiants.
+
 ## Sécurité
 
 Quiconque atteint le port 8080 peut piloter tinyMediaManager. Ne l'exposez pas tel quel sur
-Internet : gardez-le sur le réseau local, derrière un VPN (Tailscale, WireGuard), ou activez
-`auth_basic` (lignes commentées dans `nginx/default.conf.template`) ou un reverse proxy avec
-authentification.
+Internet : gardez-le sur le réseau local, derrière un VPN (Tailscale, WireGuard), ou placez-le
+derrière un reverse proxy avec authentification.
+
+## Construire l'image soi-même
+
+```
+docker build -t tmm-remote .
+docker run -d -p 8080:80 -e TMM_HOST=tinymediamanager:7878 -e TMM_API_KEY=xxxx tmm-remote
+```
 
 ## Sans proxy
 
