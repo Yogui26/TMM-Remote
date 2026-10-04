@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TMM Remote">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>TMM Remote</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--card2:#1f242e;--line:#2a303c;--fg:#e8eaf0;--mut:#8b93a5;--acc:#5b8cff;--accfg:#fff;--ok:#3ecf8e;--err:#ff6b6b;--warn:#ffb454;--r:16px;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#f3f4f7;--card:#fff;--card2:#eef0f5;--line:#dcdfe7;--fg:#171a21;--mut:#5f6778;--acc:#3b6bf0;--ok:#16a06a;--err:#d93a3a;--warn:#b86e00;color-scheme:light}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100dvh;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
+.hwrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--card);padding:5px;border-radius:14px;border:1px solid var(--line)}
+.seg button{min-height:46px;border:0;border-radius:10px;background:transparent;font-weight:600}
+.seg button.on{background:var(--acc);color:var(--accfg)}
+main{max-width:980px;margin:0 auto;padding:14px;display:flex;flex-direction:column;gap:14px}
+h2{margin:4px 2px 0;font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+h3{margin:0 0 10px;font-size:15px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+button.sc{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;min-height:84px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+button.sc:active{background:var(--card2)}
+.sc .ic{font-size:28px;line-height:1}
+.sc b{display:block;font-size:16px}
+.sc small{color:var(--mut)}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{min-height:64px;border:0;background:transparent;color:var(--mut);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
+nav button span{font-size:22px;line-height:1}
+nav button.on{color:var(--acc);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:var(--card2)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--accfg);font-weight:600}
+label.f{display:block;margin-top:12px;font-size:14px;color:var(--mut)}
+input[type=text],input[type=password],textarea,select{display:block;width:100%;min-height:48px;margin-top:6px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card2);font-size:16px}
+textarea{min-height:84px;resize:vertical}
+.tg{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;margin-top:8px;padding:0 4px;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.sw{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;flex:none;transition:.15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--ok)}.sw.on::after{left:23px}
+.btn{min-height:52px;padding:0 18px;border-radius:14px;border:1px solid var(--line);background:var(--card2);font-weight:600}
+.btn.p{background:var(--acc);border-color:var(--acc);color:var(--accfg)}
+.btn.d{color:var(--err)}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.row>.btn{flex:1;min-width:130px}
+pre{margin:0;padding:12px;border-radius:12px;background:var(--card2);overflow:auto;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;max-height:260px;white-space:pre-wrap;word-break:break-word}
+.hint{color:var(--mut);font-size:13px;margin-top:6px}
+.err{color:var(--err);font-size:14px;margin-top:8px}
+.warn{color:var(--warn);font-size:14px;margin-top:8px}
+.step{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .n{width:26px;height:26px;border-radius:50%;background:var(--card2);display:grid;place-items:center;font-size:13px;flex:none}
+.step .t{flex:1;min-width:0}
+.step .t small{display:block;color:var(--mut);word-break:break-word}
+.x{min-width:44px;min-height:44px;border:0;background:none;color:var(--mut);font-size:22px}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700}
+.b-ok{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+.b-err{background:color-mix(in srgb,var(--err) 20%,transparent);color:var(--err)}
+.b-wait{background:var(--card2);color:var(--mut)}
+.log{width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.log .h{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.log small{color:var(--mut)}
+.back{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:640px;max-height:88dvh;overflow:auto;background:var(--card);border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));border:1px solid var(--line)}
+@media (min-width:700px){.back{align-items:center}.sheet{border-radius:22px}}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;max-width:90vw}
+.empty{color:var(--mut);text-align:center;padding:30px 10px}
+</style>
+</head>
+<body>
+<header><div class="hwrap">
+  <div class="title">🎞️ TMM Remote</div>
+  <div class="seg" id="seg"></div>
+</div></header>
+<main id="main"></main>
+<nav id="nav"></nav>
+<div id="overlay"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ---------- utilitaires ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- définition de l'API tinyMediaManager ---------- */
+const MODULES = {
+  movie:    { label: '🎬 Films',  path: 'movie' },
+  tvshow:   { label: '📺 Séries', path: 'tvshow' },
+  movieset: { label: '📚 Sagas',  path: 'movieset' }
+};
+const SCOPE_LABEL = { new:'Nouveaux', all:'Tout', unscraped:'Non scrapés', dataSource:'Une source', path:'Un dossier', single:'Une source (n°)', show:'Une série', name:'Par titre' };
+const SCOPE_HINT = {
+  single:'Numéro(s) de source, en commençant à 0 (ex. 0, 2).',
+  dataSource:'Numéro de source (0, 1…) ou chemin complet. Un par ligne.',
+  path:'Chemin complet du dossier. Un par ligne.',
+  show:'Chemin complet de la série. Un par ligne.',
+  name:'Titre exact de la saga. Un par ligne.'
+};
+const NEEDS_ARGS = ['single','dataSource','path','show','name'];
+
+const ARG = {
+  scraper:    { k:'scraper', label:'Scraper (optionnel)', type:'text', ph:'tmdb, imdb, tvdb…' },
+  artScraper: { k:'scraper', label:'Scrapers d’images (optionnel)', type:'text', ph:'liste séparée par des virgules' },
+  onlyMissing:{ k:'onlyMissing', label:'Seulement les manquants', type:'bool', def:true },
+  language:   { k:'language', label:'Langue (code ISO)', type:'text', ph:'fr' },
+  profile:    { k:'profile', label:'Profil de renommage (optionnel)', type:'text' },
+  template:   { k:'template', label:'Modèle d’export (nom du dossier)', type:'text', req:true },
+  exportPath: { k:'exportPath', label:'Dossier d’export', type:'text', req:true },
+  dryRun:     { k:'dryRun', label:'Simulation (ne supprime rien)', type:'bool', def:false },
+  cksum:      { k:'type', label:'Type de checksum', type:'select', opts:['crc32','phash','all'], def:'crc32' },
+  collection: { k:'collection', label:'Collection', type:'bool', def:true },
+  watched:    { k:'watched', label:'Vus', type:'bool', def:true },
+  rating:     { k:'rating', label:'Ma note', type:'bool', def:true },
+  full:       { k:'full', label:'Rafraîchir aussi tous les épisodes', type:'bool', def:true }
+};
+const SC_ALL = ['new','all','unscraped','dataSource','path'];
+const SC_4   = ['new','all','dataSource','path'];
+const A = (id, label, icon, scopes, args = [], danger = false) => ({ id, label, icon, scopes, args, danger });
+
+const COMMON = {
+  readNfo:  A('readNfo','Relire les NFO','📄',SC_ALL),
+  media:    A('reloadMediaInfo','Recharger MediaInfo','ℹ️',SC_ALL),
+  cksum:    A('calculateChecksum','Checksum','🔐',SC_ALL,[ARG.cksum]),
+  aspect:   A('detectAspectRatio','Ratio d’image','📐',SC_ALL),
+  ratings:  A('fetchRatings','Notes','⭐',SC_ALL),
+  trailer:  A('downloadTrailer','Bandes-annonces','🎞️',SC_4,[ARG.onlyMissing]),
+  subs:     A('downloadSubtitle','Sous-titres','💬',SC_4,[ARG.language, ARG.onlyMissing]),
+  artwork:  A('downloadMissingArtwork','Images manquantes','🖼️',SC_ALL,[ARG.artScraper]),
+  rename:   A('rename','Renommer','✏️',SC_4,[ARG.profile],true),
+  exp:      A('export','Exporter','📤',SC_4,[ARG.template, ARG.exportPath]),
+  nfo:      A('writeNfo','Écrire les NFO','📝',SC_ALL),
+  cleanup:  A('cleanup','Nettoyer les fichiers inutiles','🧹',SC_ALL,[ARG.dryRun],true),
+  post:     A('postProcess','Post-traitement','⚙️',SC_ALL),
+  kodi:     A('updateKodi','Mettre à jour Kodi','📡',SC_ALL),
+  trakt:    A('syncTrakt','Sync Trakt','🔁',SC_ALL,[ARG.collection, ARG.watched, ARG.rating]),
+  simkl:    A('syncSimkl','Sync Simkl','🔁',SC_ALL)
+};
+const ACTIONS = {
+  movie: [
+    A('update','Scanner les sources','🔄',['all','single','path']),
+    COMMON.readNfo, COMMON.media, COMMON.cksum, COMMON.aspect,
+    A('scrape','Scraper','🔍',SC_ALL,[ARG.scraper]),
+    COMMON.ratings,
+    A('assignMovieSet','Assigner aux sagas','📚',SC_ALL),
+    COMMON.trailer, COMMON.subs, COMMON.artwork, COMMON.rename, COMMON.exp, COMMON.nfo, COMMON.cleanup, COMMON.post, COMMON.kodi, COMMON.trakt, COMMON.simkl
+  ],
+  tvshow: [
+    A('update','Scanner les sources','🔄',['all','single','show','path']),
+    COMMON.readNfo, COMMON.media, COMMON.cksum, COMMON.aspect,
+    A('scrape','Scraper','🔍',SC_ALL),
+    COMMON.ratings, COMMON.trailer, COMMON.subs, COMMON.artwork,
+    A('downloadTheme','Thème musical','🎵',SC_ALL,[ARG.onlyMissing]),
+    COMMON.rename, COMMON.exp, COMMON.nfo, COMMON.cleanup, COMMON.post,
+    A('updateKodi','Mettre à jour Kodi','📡',SC_ALL,[ARG.full]),
+    COMMON.trakt, COMMON.simkl
+  ],
+  movieset: (() => {
+    const S = ['all','name','path'];
+    return [
+      A('scrape','Scraper','🔍',S,[ARG.scraper]),
+      A('downloadMissingArtwork','Images manquantes','🖼️',S,[ARG.artScraper]),
+      A('cleanupArtwork','Ranger les images','🗂️',S),
+      A('rename','Renommer','✏️',S,[ARG.profile],true),
+      A('export','Exporter','📤',S,[ARG.template, ARG.exportPath]),
+      A('writeNfo','Écrire les NFO','📝',S),
+      A('postProcess','Post-traitement','⚙️',S),
+      A('updateKodi','Mettre à jour Kodi','📡',S),
+      A('syncTrakt','Sync Trakt','🔁',S,[ARG.collection, ARG.watched, ARG.rating])
+    ];
+  })()
+};
+const findAction = (mod, id) => ACTIONS[mod].find(a => a.id === id);
+
+/* ---------- scénarios rapides ---------- */
+const st = (action, name, args) => { const s = { action, scope: { name } }; if (args) s.args = args; return s; };
+function scenarios(mod) {
+  const lang = state.settings.lang || 'fr';
+  if (mod === 'movie') return [
+    { icon:'🚀', title:'Nouveautés : tout le pipeline', desc:'Scan, scrape, images, renommage, NFO, nettoyage, post-traitement, Kodi.',
+      steps:[st('update','all'),st('scrape','new'),st('downloadMissingArtwork','new'),st('rename','new'),st('writeNfo','new'),st('cleanup','new'),st('postProcess','new'),st('updateKodi','new')] },
+    { icon:'🔄', title:'Scanner et scraper les nouveaux', desc:'Détecte les nouveaux films, récupère infos et images.',
+      steps:[st('update','all'),st('scrape','new'),st('downloadMissingArtwork','new')] },
+    { icon:'📥', title:'Scanner les sources', desc:'Cherche les nouveaux films, sans rien d’autre.', steps:[st('update','all')] },
+    { icon:'🔍', title:'Scraper les films non scrapés', desc:'Tous ceux qui n’ont pas encore de métadonnées.', steps:[st('scrape','unscraped')] },
+    { icon:'💬', title:'Sous-titres manquants ('+lang+')', desc:'Pour toute la bibliothèque.', steps:[st('downloadSubtitle','all',{language:lang})] },
+    { icon:'🖼️', title:'Images manquantes', desc:'Affiches, fonds d’écran, logos…', steps:[st('downloadMissingArtwork','all')] },
+    { icon:'⭐', title:'Mettre à jour les notes', desc:'Récupère les notes de tous les films.', steps:[st('fetchRatings','all')] },
+    { icon:'📡', title:'Rafraîchir Kodi', desc:'Demande à Kodi de relire la bibliothèque.', steps:[st('updateKodi','all')] }
+  ];
+  if (mod === 'tvshow') return [
+    { icon:'🚀', title:'Nouveautés : tout le pipeline', desc:'Scan, scrape, images, renommage, NFO, nettoyage, post-traitement, Kodi.',
+      steps:[st('update','all'),st('scrape','new'),st('downloadMissingArtwork','new'),st('rename','new'),st('writeNfo','new'),st('cleanup','new'),st('postProcess','new'),st('updateKodi','new')] },
+    { icon:'🔄', title:'Scanner et scraper les nouveautés', desc:'Détecte les nouvelles séries / épisodes, récupère infos et images.',
+      steps:[st('update','all'),st('scrape','new'),st('downloadMissingArtwork','new')] },
+    { icon:'📥', title:'Scanner les sources', desc:'Cherche les nouveaux épisodes, sans rien d’autre.', steps:[st('update','all')] },
+    { icon:'🔍', title:'Scraper ce qui n’est pas scrapé', desc:'Séries et épisodes sans métadonnées.', steps:[st('scrape','unscraped')] },
+    { icon:'💬', title:'Sous-titres manquants ('+lang+')', desc:'Pour tous les épisodes.', steps:[st('downloadSubtitle','all',{language:lang})] },
+    { icon:'🖼️', title:'Images manquantes', desc:'Affiches, bannières, vignettes d’épisodes…', steps:[st('downloadMissingArtwork','all')] },
+    { icon:'⭐', title:'Mettre à jour les notes', desc:'Séries et épisodes.', steps:[st('fetchRatings','all')] },
+    { icon:'📡', title:'Rafraîchir Kodi', desc:'Demande à Kodi de relire la bibliothèque.', steps:[st('updateKodi','all')] }
+  ];
+  return [
+    { icon:'🚀', title:'Sagas : scraper, images, NFO', desc:'Pipeline complet pour toutes les sagas.', steps:[st('scrape','all'),st('downloadMissingArtwork','all'),st('writeNfo','all')] },
+    { icon:'🔍', title:'Scraper les sagas', desc:'Récupère les métadonnées.', steps:[st('scrape','all')] },
+    { icon:'🖼️', title:'Images manquantes', desc:'Affiches et fonds des sagas.', steps:[st('downloadMissingArtwork','all')] },
+    { icon:'🗂️', title:'Ranger les images', desc:'Déplace les images existantes au bon endroit.', steps:[st('cleanupArtwork','all')] },
+    { icon:'📡', title:'Rafraîchir Kodi', desc:'Relit les sagas.', steps:[st('updateKodi','all')] }
+  ];
+}
+
+/* ---------- état ---------- */
+const state = {
+  view: 'home',
+  module: store.get('tmm.module', 'movie'),
+  settings: Object.assign({ base:'/api', key:'', lang:'fr' }, store.get('tmm.settings', {})),
+  steps: { movie:[], tvshow:[], movieset:[] },
+  draft: null,
+  log: store.get('tmm.log', []),
+  openLog: -1,
+  sheet: null,
+  testMsg: ''
+};
+const saveSettings = () => store.set('tmm.settings', state.settings);
+const saveLog = () => store.set('tmm.log', state.log.slice(0, 40));
+
+function resetDraft(actionId) {
+  const mod = state.module, a = findAction(mod, actionId) || ACTIONS[mod][0];
+  state.draft = { action: a.id, scope: a.scopes.includes('all') ? 'all' : a.scopes[0], scopeArgs: '', args: {} };
+  a.args.forEach(g => { if (g.k === 'language') state.draft.args.language = state.settings.lang || ''; });
+}
+
+/* ---------- construction et affichage des étapes ---------- */
+function parseScopeArgs(scope, text) {
+  if (scope === 'single' || scope === 'dataSource') {
+    const parts = text.split(/[\s,;]+/).filter(Boolean);
+    if (parts.length && parts.every(p => /^\d+$/.test(p))) return parts.map(Number);
+  }
+  return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+}
+function buildStep(mod, d) {
+  const a = findAction(mod, d.action);
+  const step = { action: d.action, scope: { name: d.scope } };
+  if (NEEDS_ARGS.includes(d.scope)) {
+    const list = parseScopeArgs(d.scope, d.scopeArgs || '');
+    if (!list.length) return { error: 'Précisez la cible : ' + (SCOPE_HINT[d.scope] || '') };
+    step.scope.args = list;
+  }
+  const args = {};
+  for (const g of a.args) {
+    const v = d.args[g.k];
+    if (g.type === 'bool') { if (v !== undefined && v !== g.def) args[g.k] = v; }
+    else if (g.type === 'select') { if (v !== undefined && v !== g.def) args[g.k] = v; }
+    else if (v !== undefined && String(v).trim() !== '') args[g.k] = String(v).trim();
+    if (g.req && !args[g.k]) return { error: 'Champ obligatoire : ' + g.label };
+  }
+  if (Object.keys(args).length) step.args = args;
+  return { step };
+}
+function human(mod, s) {
+  const a = findAction(mod, s.action);
+  let t = (a ? a.icon + ' ' + a.label : s.action) + ' · ' + (SCOPE_LABEL[s.scope.name] || s.scope.name);
+  if (s.scope.args) t += ' (' + s.scope.args.join(', ') + ')';
+  const extra = s.args ? Object.entries(s.args).map(([k, v]) => k + '=' + v).join(', ') : '';
+  return { title: t, extra };
+}
+function analyse(mod, steps) {
+  const warns = [], dangers = [];
+  const hasUpdate = steps.some(s => s.action === 'update');
+  if (!hasUpdate && steps.some(s => s.scope.name === 'new'))
+    warns.push('« Nouveaux » ne désigne que ce qui vient d’être trouvé par « Scanner les sources » dans le même envoi. Sans scan dans la séquence, l’action risque de ne rien traiter.');
+  steps.forEach(s => {
+    const a = findAction(mod, s.action);
+    if (a && a.danger && !(s.action === 'cleanup' && s.args && s.args.dryRun === true))
+      dangers.push((s.action === 'rename' ? 'Le renommage déplace / renomme vos fichiers.' : 'Le nettoyage supprime définitivement les fichiers indésirables (jamais les vidéos). Activez « Simulation » pour tester.') + ' Portée : ' + (SCOPE_LABEL[s.scope.name] || s.scope.name) + '.');
+  });
+  return { warns, dangers: [...new Set(dangers)] };
+}
+
+/* ---------- envoi ---------- */
+const apiUrl = p => (state.settings.base || '/api').replace(/\/+$/, '') + '/' + p;
+function headers() {
+  const h = { 'Content-Type': 'application/json' };
+  if (state.settings.key) h['api-key'] = state.settings.key;
+  return h;
+}
+async function run(mod, steps) {
+  const entry = { t: Date.now(), mod, steps, status: 'wait', http: null, resp: '' };
+  state.log.unshift(entry); state.openLog = 0; saveLog(); render();
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const res = await fetch(apiUrl(MODULES[mod].path), { method:'POST', headers: headers(), body: JSON.stringify(steps.length === 1 ? steps[0] : steps), signal: ctl.signal });
+    const txt = await res.text();
+    entry.http = res.status; entry.resp = txt.slice(0, 2000); entry.status = res.ok ? 'ok' : 'err';
+  } catch (e) {
+    entry.status = 'err';
+    entry.resp = (e.name === 'AbortError' ? 'Délai dépassé (30 s).' : 'Impossible de joindre l’API : ' + e.message) + '\nVérifiez l’URL dans Réglages (et que le proxy tourne).';
+  } finally { clearTimeout(to); }
+  saveLog(); render();
+  toast(entry.status === 'ok' ? 'Commande envoyée ✓' : 'Échec de l’envoi');
+}
+async function testConnection() {
+  state.testMsg = 'Test en cours…'; render();
+  try {
+    const res = await fetch(apiUrl('docs'), { headers: state.settings.key ? { 'api-key': state.settings.key } : {} });
+    const txt = await res.text(); let info = '';
+    try { const j = JSON.parse(txt); info = j.info && j.info.title ? ' — ' + j.info.title + (j.info.version ? ' ' + j.info.version : '') : ''; } catch {}
+    state.testMsg = res.ok ? '✓ Connecté (HTTP ' + res.status + ')' + info : '✗ HTTP ' + res.status + ' — vérifiez la clé API et l’URL.';
+  } catch (e) { state.testMsg = '✗ Injoignable : ' + e.message; }
+  render();
+}
+
+/* ---------- rendu ---------- */
+function toast(msg) {
+  const el = $('#toast'); el.innerHTML = '<div class="toast">' + esc(msg) + '</div>';
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.innerHTML = '', 2200);
+}
+const NAV = [['home','🏠','Scénarios'],['build','🛠️','Construire'],['log','🕘','Journal'],['set','⚙️','Réglages']];
+
+function render() {
+  $('#seg').innerHTML = Object.entries(MODULES).map(([k, m]) =>
+    `<button data-act="module" data-v="${k}" class="${state.module === k ? 'on' : ''}">${m.label}</button>`).join('');
+  $('#nav').innerHTML = NAV.map(([k, ic, l]) => {
+    const badge = k === 'build' && state.steps[state.module].length ? ` (${state.steps[state.module].length})` : '';
+    return `<button data-act="view" data-v="${k}" class="${state.view === k ? 'on' : ''}"><span>${ic}</span>${l}${badge}</button>`;
+  }).join('');
+  const views = { home: vHome, build: vBuild, log: vLog, set: vSet };
+  const keep = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.in : null;
+  $('#main').innerHTML = views[state.view]();
+  if (keep) { const el = $('[data-in="' + keep + '"]'); if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch {} } }
+  $('#overlay').innerHTML = state.sheet ? vSheet() : '';
+  if (state.view === 'build') updatePreview();
+}
+
+function vHome() {
+  const list = scenarios(state.module);
+  return `<h2>Lancer en un geste</h2>
+  <div class="grid">${list.map((s, i) => `<button class="sc" data-act="scenario" data-i="${i}"><span class="ic">${s.icon}</span><span><b>${esc(s.title)}</b><small>${esc(s.desc)}</small></span></button>`).join('')}</div>
+  <p class="hint">Chaque scénario demande une confirmation et peut être modifié avant l’envoi. L’API de tinyMediaManager lance des tâches : l’avancement se suit dans tinyMediaManager lui-même.</p>`;
+}
+
+function vBuild() {
+  const mod = state.module, acts = ACTIONS[mod];
+  if (!state.draft || !findAction(mod, state.draft.action)) resetDraft(acts[0].id);
+  const d = state.draft, a = findAction(mod, d.action), seq = state.steps[mod];
+  const scopeBox = NEEDS_ARGS.includes(d.scope)
+    ? `<label class="f">Cible<textarea data-in="scopeArgs" placeholder="${esc(SCOPE_HINT[d.scope] || '')}">${esc(d.scopeArgs)}</textarea></label><div class="hint">${esc(SCOPE_HINT[d.scope] || '')}</div>` : '';
+  const fields = a.args.map(g => {
+    const v = d.args[g.k];
+    if (g.type === 'bool') { const on = v === undefined ? g.def : v; return `<button class="tg" data-act="toggle" data-k="${g.k}"><span>${esc(g.label)}</span><span class="sw ${on ? 'on' : ''}"></span></button>`; }
+    if (g.type === 'select') return `<label class="f">${esc(g.label)}<select data-in="arg:${g.k}">${g.opts.map(o => `<option ${(v ?? g.def) === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>`;
+    return `<label class="f">${esc(g.label)}${g.req ? ' *' : ''}<input type="text" data-in="arg:${g.k}" value="${esc(v ?? '')}" placeholder="${esc(g.ph || '')}" autocapitalize="off" autocomplete="off"></label>`;
+  }).join('');
+  return `<div class="card"><h3>1 · Action</h3><div class="chips">${acts.map(x => `<button class="chip ${x.id === d.action ? 'on' : ''}" data-act="pickAction" data-v="${x.id}">${x.icon} ${esc(x.label)}</button>`).join('')}</div></div>
+  <div class="card"><h3>2 · Portée</h3><div class="chips">${a.scopes.map(s => `<button class="chip ${s === d.scope ? 'on' : ''}" data-act="pickScope" data-v="${s}">${SCOPE_LABEL[s]}</button>`).join('')}</div>${scopeBox}</div>
+  ${fields ? `<div class="card"><h3>3 · Options</h3>${fields}</div>` : ''}
+  <div class="card"><h3>Aperçu</h3><pre id="prev"></pre><div class="err" id="perr"></div>
+    <div class="row"><button class="btn p" id="addbtn" data-act="addStep">＋ Ajouter à la séquence</button></div></div>
+  <div class="card"><h3>Séquence (${seq.length})</h3>
+    ${seq.length ? seq.map((s, i) => { const h = human(mod, s); return `<div class="step"><span class="n">${i + 1}</span><span class="t">${esc(h.title)}${h.extra ? `<small>${esc(h.extra)}</small>` : ''}</span><button class="x" data-act="delStep" data-i="${i}" aria-label="Retirer">×</button></div>`; }).join('') : '<div class="hint">Vide. Ajoutez des actions : elles partent ensemble dans un seul envoi.</div>'}
+    <div class="row"><button class="btn d" data-act="clearSeq" ${seq.length ? '' : 'disabled'}>Vider</button><button class="btn p" data-act="runSeq" ${seq.length ? '' : 'disabled'}>▶ Lancer</button></div></div>`;
+}
+function updatePreview() {
+  const r = buildStep(state.module, state.draft), p = $('#prev');
+  if (!p) return;
+  p.textContent = r.step ? JSON.stringify(r.step, null, 2) : '—';
+  $('#perr').textContent = r.error || '';
+  $('#addbtn').disabled = !!r.error;
+}
+
+function vLog() {
+  if (!state.log.length) return '<div class="empty">Aucune commande envoyée pour l’instant.</div>';
+  return `<div class="row" style="margin:0"><button class="btn d" data-act="clearLog">Vider le journal</button></div>` + state.log.map((e, i) => {
+    const b = e.status === 'ok' ? '<span class="badge b-ok">OK ' + e.http + '</span>' : e.status === 'wait' ? '<span class="badge b-wait">en cours…</span>' : '<span class="badge b-err">Échec' + (e.http ? ' ' + e.http : '') + '</span>';
+    const open = state.openLog === i;
+    const lines = e.steps.map(s => esc(human(e.mod, s).title)).join('<br>');
+    return `<div class="log"><button class="log" style="all:unset;display:block;width:100%;cursor:pointer" data-act="openLog" data-i="${i}">
+      <div class="h"><b>${esc(MODULES[e.mod].label)}</b>${b}</div><small>${new Date(e.t).toLocaleString('fr-FR')}</small><div style="margin-top:6px;font-size:14px">${lines}</div></button>
+      ${open ? `<pre style="margin-top:10px">${esc(e.resp || '(réponse vide)')}</pre><div class="row"><button class="btn" data-act="replay" data-i="${i}">↻ Rejouer</button></div>` : ''}</div>`;
+  }).join('');
+}
+
+function vSet() {
+  const s = state.settings;
+  return `<div class="card"><h3>Connexion</h3>
+    <label class="f">URL de l’API<input type="text" data-in="set:base" value="${esc(s.base)}" autocapitalize="off" autocomplete="off" placeholder="/api"></label>
+    <div class="hint">« /api » si vous utilisez le proxy fourni (recommandé : il ajoute la clé et évite les blocages CORS). Sinon : http://serveur:7878/api</div>
+    <label class="f">Clé API (laisser vide avec le proxy)<input type="password" data-in="set:key" value="${esc(s.key)}" autocomplete="off"></label>
+    <label class="f">Langue des sous-titres par défaut<input type="text" data-in="set:lang" value="${esc(s.lang)}" placeholder="fr" autocapitalize="off"></label>
+    <div class="row"><button class="btn p" data-act="test">Tester la connexion</button></div>
+    ${state.testMsg ? `<div class="${state.testMsg[0] === '✓' ? '' : 'warn'}" style="margin-top:10px">${esc(state.testMsg)}</div>` : ''}</div>
+  <div class="card"><h3>Installer sur l’écran d’accueil</h3><div class="hint">iPhone / iPad : Partager → « Sur l’écran d’accueil ». Android : menu ⋮ → « Installer l’application ». (Nécessite HTTPS ou localhost pour le mode hors-ligne.)</div></div>`;
+}
+
+function vSheet() {
+  const { mod, steps, title } = state.sheet, an = analyse(mod, steps);
+  return `<div class="back" data-act="closeSheet"><div class="sheet" data-stop="1">
+    <h3 style="font-size:18px">${esc(title)}</h3>
+    ${steps.map((s, i) => { const h = human(mod, s); return `<div class="step"><span class="n">${i + 1}</span><span class="t">${esc(h.title)}${h.extra ? `<small>${esc(h.extra)}</small>` : ''}</span></div>`; }).join('')}
+    ${an.dangers.map(t => `<div class="err">⚠️ ${esc(t)}</div>`).join('')}
+    ${an.warns.map(t => `<div class="warn">ℹ️ ${esc(t)}</div>`).join('')}
+    <div class="row"><button class="btn" data-act="closeSheet">Annuler</button><button class="btn" data-act="editSheet">Modifier</button><button class="btn p" data-act="go">▶ Lancer</button></div>
+  </div></div>`;
+}
+
+/* ---------- événements ---------- */
+const H = {
+  module(d) { state.module = d.v; store.set('tmm.module', d.v); state.draft = null; render(); },
+  view(d) { state.view = d.v; render(); },
+  scenario(d) { const sc = scenarios(state.module)[+d.i]; state.sheet = { mod: state.module, steps: sc.steps, title: sc.title }; render(); },
+  closeSheet(d, el, e) { if (e.target.closest('[data-stop]') && !e.target.closest('button')) return; state.sheet = null; render(); },
+  editSheet() { state.steps[state.sheet.mod] = JSON.parse(JSON.stringify(state.sheet.steps)); state.module = state.sheet.mod; state.sheet = null; state.view = 'build'; render(); },
+  go() { const { mod, steps } = state.sheet; state.sheet = null; state.view = 'log'; run(mod, steps); },
+  pickAction(d) { resetDraft(d.v); render(); },
+  pickScope(d) { state.draft.scope = d.v; render(); },
+  toggle(d) { const g = findAction(state.module, state.draft.action).args.find(x => x.k === d.k); const cur = state.draft.args[d.k]; state.draft.args[d.k] = !(cur === undefined ? g.def : cur); render(); },
+  addStep() { const r = buildStep(state.module, state.draft); if (!r.step) return; state.steps[state.module].push(r.step); toast('Ajouté à la séquence'); render(); },
+  delStep(d) { state.steps[state.module].splice(+d.i, 1); render(); },
+  clearSeq() { state.steps[state.module] = []; render(); },
+  runSeq() { const steps = state.steps[state.module]; if (!steps.length) return; state.sheet = { mod: state.module, steps: JSON.parse(JSON.stringify(steps)), title: 'Lancer la séquence' }; render(); },
+  openLog(d) { state.openLog = state.openLog === +d.i ? -1 : +d.i; render(); },
+  clearLog() { state.log = []; saveLog(); render(); },
+  replay(d) { const e = state.log[+d.i]; state.sheet = { mod: e.mod, steps: e.steps, title: 'Rejouer cette commande' }; render(); },
+  test() { testConnection(); }
+};
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (!t || !H[t.dataset.act]) return;
+  if (t.dataset.act === 'closeSheet' && t.classList.contains('back') && e.target.closest('[data-stop]')) return;
+  H[t.dataset.act](t.dataset, t, e);
+});
+document.addEventListener('input', e => {
+  const t = e.target, k = t.dataset && t.dataset.in;
+  if (!k) return;
+  if (k === 'scopeArgs') state.draft.scopeArgs = t.value;
+  else if (k.startsWith('arg:')) state.draft.args[k.slice(4)] = t.value;
+  else if (k.startsWith('set:')) { state.settings[k.slice(4)] = t.value; saveSettings(); }
+  if (state.view === 'build') updatePreview();
+});
+
+render();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
