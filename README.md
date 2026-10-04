@@ -44,6 +44,18 @@ Si le paquet est privé après la première publication (Profil GitHub → Packa
 Package settings → Change visibility), passez-le en public pour que `docker pull` fonctionne
 sans identifiants.
 
+## Dépannage
+
+Au démarrage, le conteneur affiche l'adresse d'API qu'il utilise (`docker logs tmm-remote`) :
+`tmm-remote: API tinyMediaManager -> http://hôte:port/api/`. Les valeurs de `TMM_HOST` et
+`TMM_API_KEY` sont nettoyées automatiquement (espaces, guillemets, retours chariot d'un `.env`
+créé sous Windows, `http://` ou `/api` en trop) ; si une correction a eu lieu, les octets
+reçus sont affichés dans le log.
+
+- `host not found in upstream` : le nom du conteneur n'est pas résolu. Vérifiez `TMM_NETWORK`
+  (`docker network ls`) ou utilisez l'adresse IP du serveur dans `TMM_HOST`.
+- Erreur 401 / 403 dans le Journal de l'appli : clé API incorrecte.
+
 ## Sécurité
 
 Quiconque atteint le port 8080 peut piloter tinyMediaManager. Ne l'exposez pas tel quel sur

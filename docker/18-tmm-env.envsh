@@ -1,0 +1,39 @@
+#!/bin/sh
+# Sourcé par l'entrypoint de l'image nginx, avant la génération de la config
+# (20-envsubst-on-templates.sh). Nettoie les variables d'environnement pour
+# éviter les erreurs nginx dues à un caractère invisible (retour chariot d'un
+# fichier .env Windows, espace, guillemets) ou à un format inattendu.
+
+tmm_clean() {
+    # retire CR/LF, espaces en bord et guillemets entourants
+    printf '%s' "$1" | tr -d '\r\n' |
+        sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+            -e "s/^[\"']//" -e "s/[\"']\$//"
+}
+
+tmm_raw_host="${TMM_HOST-}"
+
+TMM_HOST=$(tmm_clean "${TMM_HOST-}")
+# « http://hôte:port/api » -> « hôte:port »
+TMM_HOST=$(printf '%s' "$TMM_HOST" | sed -e 's#^[A-Za-z][A-Za-z]*://##' -e 's#/.*$##')
+
+case "$TMM_HOST" in
+    "")  TMM_HOST="tinymediamanager:7878" ;;
+    *:*) ;;
+    *)   TMM_HOST="${TMM_HOST}:7878" ;;
+esac
+
+TMM_API_KEY=$(tmm_clean "${TMM_API_KEY-}")
+export TMM_HOST TMM_API_KEY
+
+echo "tmm-remote: API tinyMediaManager -> http://${TMM_HOST}/api/"
+if [ "$tmm_raw_host" != "$TMM_HOST" ]; then
+    echo "tmm-remote: TMM_HOST corrigé. Valeur reçue (octets) :"
+    printf '%s' "$tmm_raw_host" | od -c | head -3
+fi
+if [ -z "$TMM_API_KEY" ]; then
+    echo "tmm-remote: attention, TMM_API_KEY est vide : l'API refusera les requêtes."
+fi
+
+unset tmm_raw_host
+unset -f tmm_clean 2>/dev/null || true
