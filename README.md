@@ -34,6 +34,33 @@ Aucun volume n'est nécessaire : l'appli est dans l'image. Pour mettre à jour :
 Le proxy nginx ajoute la clé API côté serveur (elle n'arrive jamais dans le navigateur) et
 évite les problèmes de CORS et de contenu mixte HTTP/HTTPS. Dans l'appli, laissez l'URL à `/api`.
 
+## Installation sous Unraid
+
+Prérequis : le conteneur tinyMediaManager tourne déjà, son **API HTTP est activée** et son port
+(7878 par défaut) est **publié** sur le serveur, avec une clé API définie.
+
+1. Ouvrez le terminal d'Unraid (ou SSH) et installez le modèle :
+   ```
+   wget -O /boot/config/plugins/dockerMan/templates-user/my-TMM-Remote.xml \
+     https://raw.githubusercontent.com/Yogui26/TMM-Remote/main/unraid/tmm-remote.xml
+   ```
+2. Onglet **Docker** → **Add Container** → liste **Template** → section *User templates* →
+   **TMM-Remote**.
+3. Renseignez :
+   - **TMM_HOST** : `IP-DE-VOTRE-UNRAID:7878` (l'IP du serveur et le port publié de l'API, pas
+     le port 4000 de l'interface VNC) ;
+   - **TMM_API_KEY** : la clé API de tinyMediaManager ;
+   - **Port de l'interface** : 8765 par défaut, à changer s'il est déjà pris.
+4. **Apply**. Cliquez ensuite sur l'icône du conteneur → **WebUI**, ou ouvrez
+   `http://IP-DE-VOTRE-UNRAID:8765`.
+
+Aucun chemin ni volume à configurer. Mise à jour : onglet Docker → *Check for updates*, puis
+*apply update* sur TMM-Remote.
+
+Conseil : utilisez l'IP du serveur dans `TMM_HOST` plutôt qu'un nom de conteneur. Sur le réseau
+`bridge` par défaut d'Unraid, les conteneurs ne se retrouvent pas par leur nom, et une IP évite
+aussi tout souci d'ordre de démarrage au lancement de la baie.
+
 ## Publier une nouvelle version
 
 Chaque push sur `main` met à jour `latest`. Pour une version figée, créez une release GitHub

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>TMM-Remote</Name>
+  <Repository>ghcr.io/yogui26/tmm-remote:latest</Repository>
+  <Registry>https://github.com/Yogui26/TMM-Remote/pkgs/container/tmm-remote</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Yogui26/TMM-Remote/issues</Support>
+  <Project>https://github.com/Yogui26/TMM-Remote</Project>
+  <Overview>Télécommande web tactile (mobile et tablette) pour l'API HTTP de tinyMediaManager : scanner, scraper, sous-titres, images, renommage, Kodi… Nécessite un conteneur tinyMediaManager avec l'API HTTP activée. Ne l'exposez pas sur Internet : quiconque atteint ce port peut piloter tinyMediaManager.</Overview>
+  <Category>MediaApp:Video Tools:</Category>
+  <WebUI>http://[IP]:[PORT:80]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Yogui26/TMM-Remote/main/unraid/tmm-remote.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Yogui26/TMM-Remote/main/app/icon-192.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Conteneur tinyMediaManager avec l'API HTTP activée (port 7878 publié).</Requires>
+  <Config Name="Port de l'interface" Target="80" Default="8765" Mode="tcp" Description="Port d'accès à l'appli depuis votre réseau (http://IP-UNRAID:8765)." Type="Port" Display="always" Required="true" Mask="false">8765</Config>
+  <Config Name="TMM_HOST" Target="TMM_HOST" Default="" Mode="" Description="Adresse de l'API de tinyMediaManager, au format IP-UNRAID:PORT (ex. 192.168.0.10:7878). Utilisez l'IP du serveur et le port publié de l'API." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="TMM_API_KEY" Target="TMM_API_KEY" Default="" Mode="" Description="Clé API définie dans tinyMediaManager (Réglages > Général > API HTTP). Elle reste côté serveur et n'est jamais envoyée au navigateur." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+</Container>
