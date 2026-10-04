@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Yogui26/TMM-Remote/issues</Support>
   <Project>https://github.com/Yogui26/TMM-Remote</Project>
-  <Overview>Télécommande web tactile (mobile et tablette) pour l'API HTTP de tinyMediaManager : scanner, scraper, sous-titres, images, renommage, Kodi… Nécessite un conteneur tinyMediaManager avec l'API HTTP activée. Ne l'exposez pas sur Internet : quiconque atteint ce port peut piloter tinyMediaManager.</Overview>
+  <Overview>Télécommande web tactile (mobile et tablette) pour l'API HTTP de tinyMediaManager : scanner, scraper, sous-titres, images, renommage… Nécessite un conteneur tinyMediaManager avec l'API HTTP activée. Ne l'exposez pas sur Internet : quiconque atteint ce port peut piloter tinyMediaManager.</Overview>
   <Category>MediaApp:Video Tools:</Category>
   <WebUI>http://[IP]:[PORT:80]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Yogui26/TMM-Remote/main/unraid/tmm-remote.xml</TemplateURL>

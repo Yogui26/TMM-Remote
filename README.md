@@ -11,7 +11,7 @@ dossier). Elle ne permet ni de lister la bibliothèque, ni d'éditer une fiche, 
 l'avancement : une réponse « 200 » veut seulement dire « commande mise en file d'attente ».
 Pour compléter, l'appli peut lire (en lecture seule) vos médias et les logs de tinyMediaManager.
 
-- **Scénarios** : gros boutons (pipeline « nouveautés », sous-titres FR, images, notes, Kodi…)
+- **Scénarios** : gros boutons (pipeline « nouveautés », sous-titres FR, images, notes…)
   avec confirmation avant envoi.
 - **Biblio** *(si `/media` est monté)* : liste des films et séries lue depuis les fichiers NFO,
   avec affiches, recherche, filtres (sans NFO, sans affiche, sans sous-titres, récents) et fiche
@@ -78,8 +78,10 @@ ni log. Mise à jour : onglet Docker → *Check for updates*, puis *apply update
 Un petit service Python intégré à l'image (`indexer/indexer.py`, bibliothèque standard
 uniquement, joignable seulement via nginx) lit :
 
-- `/media` : les fichiers NFO au format Kodi (`movie.nfo`, `tvshow.nfo`), les affiches
-  (`poster.jpg`, `*-poster.jpg`, `folder.jpg`), les sous-titres et les vidéos. Un film dont le
+- `/media` : les fichiers NFO au format Emby (ou Kodi : les balises de base sont les mêmes) —
+  `movie.nfo` ou `<nom du film>.nfo`, `tvshow.nfo`, un NFO par épisode —, les affiches (`poster`,
+  `folder`, `cover`, `default`, `movie`, `*-poster`, `*-cover`, en jpg, png ou tbn), les fonds
+  (`backdrop`, `fanart`, `background`), les sous-titres et les vidéos. Un film dont le
   dossier n'a pas de NFO apparaît comme « non scrapé » ; une série sans `tvshow.nfo` est reconnue
   à ses dossiers de saisons ou à ses noms `S01E02`.
 - `/data/logs/*.log` : les logs de tinyMediaManager (`tmm.log` par défaut).

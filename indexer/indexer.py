@@ -27,7 +27,10 @@ PORT = int(os.environ.get("INDEXER_PORT", "8081"))
 VIDEO_EXT = {".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".m2ts", ".mpg", ".mpeg",
              ".iso", ".flv", ".webm", ".divx", ".vob"}
 SUB_EXT = {".srt", ".sub", ".ass", ".ssa", ".vtt", ".idx", ".sup"}
-IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".tbn"}  # .tbn : jpeg renommé (Emby / Kodi)
+POSTER_STEMS = ("poster", "folder", "cover", "default", "movie")  # noms d'affiche reconnus par Emby
+POSTER_SUFFIXES = ("-poster", "-cover")
+FANART_RE = re.compile(r"(?i)(^|-)(fanart|backdrop|background)$")
 SKIP_DIRS = {"@eaDir", "#recycle", "lost+found", ".Trash-1000", "$RECYCLE.BIN"}
 EP_RE = re.compile(r"(?i)(?:\bs\d{1,3}[ ._-]?e\d{1,4}|\b\d{1,2}x\d{2,3}\b)")
 SEASON_RE = re.compile(r"(?i)^(season|saison|staffel|specials?|s\d{1,2})[ ._-]*\d*$")
@@ -81,6 +84,23 @@ def txt(el, tag):
     return (e.text or "").strip() if e is not None and e.text else ""
 
 
+ID_TAGS = {"tmdbid": "tmdb", "imdbid": "imdb", "imdb_id": "imdb", "tvdbid": "tvdb", "tvmazeid": "tvmaze"}
+
+
+def nfo_ids(el):
+    """Identifiants : <uniqueid type="…"> (Kodi, Emby ≥ 4.6) et balises Emby <tmdbid>, <imdbid>, <tvdbid>."""
+    ids = {}
+    for tag, name in ID_TAGS.items():
+        v = txt(el, tag)
+        if v:
+            ids[name] = v
+    for u in el.findall("uniqueid"):
+        t, v = (u.get("type") or "").strip().lower(), (u.text or "").strip()
+        if t and v:
+            ids[t] = v
+    return ids
+
+
 def nfo_info(el, full=False):
     rating = ""
     r = el.find("ratings/rating/value")
@@ -88,16 +108,24 @@ def nfo_info(el, full=False):
         rating = r.text.strip()
     elif txt(el, "rating"):
         rating = txt(el, "rating")
-    year = txt(el, "year") or txt(el, "premiered")[:4] or txt(el, "releasedate")[:4]
+    elif txt(el, "criticrating"):  # Emby
+        rating = txt(el, "criticrating")
+    year = (txt(el, "year") or txt(el, "productionyear") or txt(el, "premiered")[:4]
+            or txt(el, "releasedate")[:4] or txt(el, "aired")[:4])
     info = {"title": txt(el, "title"), "year": year, "rating": rating[:4]}
     if full:
+        s = el.find("set")  # Kodi : <set><name>…</name></set> ; Emby : <set>Nom</set>
+        collection = ""
+        if s is not None:
+            collection = txt(s, "name") or (s.text or "").strip()
         info.update({
             "originaltitle": txt(el, "originaltitle"),
-            "plot": txt(el, "plot"),
+            "plot": txt(el, "plot") or txt(el, "outline"),
             "tagline": txt(el, "tagline"),
             "runtime": txt(el, "runtime"),
             "genres": [g.text.strip() for g in el.findall("genre") if g.text],
-            "ids": {u.get("type"): (u.text or "").strip() for u in el.findall("uniqueid") if u.get("type")},
+            "ids": nfo_ids(el),
+            "collection": collection,
             "status": txt(el, "status"),
         })
     return info
@@ -126,18 +154,20 @@ def classify(entries):
 
 
 def pick_poster(imgs):
-    low = {i.lower(): i for i in imgs}
-    for key in ("poster.jpg", "poster.png", "poster.jpeg", "poster.webp", "folder.jpg", "folder.png"):
-        if key in low:
-            return low[key]
-    for i in imgs:
-        if re.search(r"(?i)-poster\.(jpe?g|png|webp)$", i):
+    """Affiche selon les noms reconnus par Emby : poster, folder, cover, default, movie, <nom>-poster, <nom>-cover."""
+    stems = {i: os.path.splitext(i)[0].lower() for i in imgs}
+    for key in POSTER_STEMS:
+        for i in sorted(imgs):
+            if stems[i] == key:
+                return i
+    for i in sorted(imgs):
+        if stems[i].endswith(POSTER_SUFFIXES):
             return i
     return None
 
 
 def has_fanart(imgs):
-    return any(re.search(r"(?i)(fanart|backdrop)", i) for i in imgs)
+    return any(FANART_RE.search(os.path.splitext(i)[0]) for i in imgs)
 
 
 def list_dir(path):
@@ -393,8 +423,13 @@ class Handler(BaseHTTPRequestHandler):
         if not path or ext not in IMG_EXT or not os.path.isfile(path):
             return self.send_json({"error": "image introuvable"}, 404)
         size = os.path.getsize(path)
+        ctype = mimetypes.guess_type(path)[0]
+        if not ctype:  # .tbn : jpeg ou png renommé, on lit l'en-tête
+            with open(path, "rb") as f:
+                head = f.read(8)
+            ctype = "image/jpeg" if head[:3] == b"\xff\xd8\xff" else "image/png" if head[:4] == b"\x89PNG" else "application/octet-stream"
         self.send_response(200)
-        self.send_header("Content-Type", mimetypes.guess_type(path)[0] or "application/octet-stream")
+        self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(size))
         self.send_header("Cache-Control", "public, max-age=3600")
         self.end_headers()
