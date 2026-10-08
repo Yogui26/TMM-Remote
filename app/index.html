@@ -114,6 +114,14 @@ details summary{min-height:44px;display:flex;align-items:center;cursor:pointer;c
 .acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
 .acts .btn{min-width:0}
 nav button{font-size:11px}
+.i{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:hsl(var(--h,220) 62% var(--il))}
+:root{--il:68%}@media (prefers-color-scheme:light){:root{--il:42%}}
+.i.ok{color:var(--ok)}.i.err{color:var(--err)}.i.warn{color:var(--warn)}
+.on .i,.btn.p .i,.seg .on .i{color:inherit}
+.i:not([style]):not(.ok):not(.err):not(.warn){color:inherit}
+.sc .ic .i{width:1.1em;height:1.1em;vertical-align:0}
+.po .i{color:var(--mut);opacity:.7}
+nav button .i{width:24px;height:24px;vertical-align:0}
 </style>
 </head>
 <body>
@@ -367,6 +375,49 @@ function toast(msg) {
   const el = $('#toast'); el.innerHTML = '<div class="toast">' + esc(msg) + '</div>';
   clearTimeout(toast.t); toast.t = setTimeout(() => el.innerHTML = '', 2200);
 }
+const ICONS = {
+  film: [35, '<rect x="2" y="2" width="20" height="20" rx="2.2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/>'],
+  tv: [205, '<rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2l-5 5-5-5"/>'],
+  books: [265, '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'],
+  file: [190, '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>'],
+  info: [210, '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'],
+  lock: [330, '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'],
+  ratio: [170, '<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>'],
+  star: [45, '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>'],
+  msg: [155, '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'],
+  image: [290, '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'],
+  pencil: [25, '<path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>'],
+  upload: [180, '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>'],
+  download: [180, '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>'],
+  trash: [10, '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'],
+  sliders: [225, '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'],
+  wrench: [225, '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>'],
+  refresh: [215, '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 21v-5h5"/>'],
+  search: [200, '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/>'],
+  music: [310, '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'],
+  folder: [40, '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/>'],
+  zap: [50, '<path d="M13 2L3 14h9l-1 8 10-12h-9z"/>'],
+  home: [215, '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>'],
+  clock: [260, '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'],
+  book: [200, '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>'],
+  term: [250, '<path d="M4 17l6-6-6-6M12 19h8"/>'],
+  play: [null, '<path d="M6 3l14 9-14 9z"/>'],
+  check: ["ok", '<path d="M20 6L9 17l-5-5"/>'],
+  x: ["err", '<path d="M18 6L6 18M6 6l12 12"/>'],
+  alert: ["warn", '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>'],
+  down: [null, '<path d="M6 9l6 6 6-6"/>'],
+  right: [null, '<path d="M9 18l6-6-6-6"/>']
+};
+const ICON_MAP = {"🎬": "film", "🎞": "film", "📺": "tv", "📚": "books", "📄": "file", "📝": "file", "ℹ": "info", "🔐": "lock", "📐": "ratio", "⭐": "star", "💬": "msg", "🖼": "image", "✏": "pencil", "📤": "upload", "📥": "download", "🧹": "trash", "⚙": "sliders", "🛠": "wrench", "🔁": "refresh", "🔄": "refresh", "↻": "refresh", "🔍": "search", "🔎": "search", "🎵": "music", "🗂": "folder", "📁": "folder", "🚀": "zap", "🏠": "home", "🕘": "clock", "📖": "book", "🧾": "term", "▶": "play", "✓": "check", "✅": "check", "✗": "x", "❌": "x", "⚠": "alert", "▾": "down", "▸": "right"};
+const ICON_RE = new RegExp('(' + Object.keys(ICON_MAP).join('|') + ')\\uFE0F?', 'g');
+/* remplace les pictogrammes (emoji) d'un fragment HTML par des icônes SVG monochromes */
+function I(html) {
+  return html.replace(ICON_RE, (_, k) => {
+    const [h, d] = ICONS[ICON_MAP[k]];
+    const cls = typeof h === 'string' ? ' ' + h : '', st = typeof h === 'number' ? ` style="--h:${h}"` : '';
+    return `<svg class="i${cls}"${st} viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  });
+}
 const hasLib = () => { const S = state.lib.status; return !!(S && S.enabled && S.media); };
 const hasTmmLog = () => { const S = state.lib.status; return !!(S && S.logs && S.logs.length); };
 function navItems() {
@@ -376,18 +427,19 @@ function navItems() {
 
 function render() {
   if (state.view === 'lib' && !hasLib()) state.view = 'home';
-  $('#seg').innerHTML = Object.entries(MODULES).map(([k, m]) =>
-    `<button data-act="module" data-v="${k}" class="${state.module === k ? 'on' : ''}">${m.label}</button>`).join('');
-  $('#nav').innerHTML = navItems().map(([k, ic, l]) => {
+  $('.title').innerHTML = I('🎞️ TMM Remote');
+  $('#seg').innerHTML = I(Object.entries(MODULES).map(([k, m]) =>
+    `<button data-act="module" data-v="${k}" class="${state.module === k ? 'on' : ''}">${m.label}</button>`).join(''));
+  $('#nav').innerHTML = I(navItems().map(([k, ic, l]) => {
     const badge = k === 'build' && state.steps[state.module].length ? ` (${state.steps[state.module].length})` : '';
     return `<button data-act="view" data-v="${k}" class="${state.view === k ? 'on' : ''}"><span>${ic}</span>${l}${badge}</button>`;
-  }).join('');
+  }).join(''));
   const views = { home: vHome, lib: vLib, build: vBuild, log: vLog, set: vSet };
   const keep = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.in : null;
   const scroller = state.view === 'log' ? $('#tmmlog') : null, oldTop = scroller ? scroller.scrollTop : 0;
-  $('#main').innerHTML = views[state.view]();
+  $('#main').innerHTML = I(views[state.view]());
   if (keep) { const el = $('[data-in="' + keep + '"]'); if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch {} } }
-  $('#overlay').innerHTML = state.sheet ? vSheet() : state.item ? vItem() : '';
+  $('#overlay').innerHTML = I(state.sheet ? vSheet() : state.item ? vItem() : '');
   if (state.view === 'build') updatePreview();
   if (state.view === 'log' && state.logTab === 'tmm' && hasTmmLog()) {
     const el = $('#tmmlog'); if (el) el.scrollTop = oldTop || el.scrollHeight;
@@ -541,9 +593,9 @@ function paintLog() {
   const el = $(V.mode === 'raw' ? '#tmmlog' : '#tmmread'); if (!el) return;
   if (V.mode === 'raw') {
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    el.innerHTML = logHtml();
+    el.innerHTML = I(logHtml());
     if (near) el.scrollTop = el.scrollHeight;
-  } else el.innerHTML = readHtml();
+  } else el.innerHTML = I(readHtml());
   const ts = $('#logts'); if (ts) ts.textContent = V.ts ? 'Mis à jour à ' + new Date(V.ts).toLocaleTimeString('fr-FR') : '';
 }
 async function loadLog() {
