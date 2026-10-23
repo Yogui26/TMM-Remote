@@ -114,6 +114,8 @@ reprend les correctifs de nginx et d'Alpine. Pour en profiter, mettez à jour le
 
 ## Publier une nouvelle version
 
+Les changements de chaque version sont dans [CHANGELOG.md](CHANGELOG.md).
+
 Chaque push sur `main` met à jour `latest`. Pour une version figée, créez une release GitHub
 avec un tag `vX.Y.Z` (ex. `v1.0.0`) : le workflow `.github/workflows/docker.yml` construit et
 publie l'image `1.0.0`, `1.0`, `1` et `latest`.
