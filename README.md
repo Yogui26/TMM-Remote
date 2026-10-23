@@ -106,6 +106,12 @@ Conseil : utilisez l'IP du serveur dans `TMM_HOST` plutôt qu'un nom de conteneu
 `bridge` par défaut d'Unraid, les conteneurs ne se retrouvent pas par leur nom, et une IP évite
 aussi tout souci d'ordre de démarrage au lancement de la baie.
 
+## Mises à jour de sécurité
+
+L'image est reconstruite chaque lundi (et à chaque push) sur la dernière image `nginx:1.30-alpine`, ce qui
+reprend les correctifs de nginx et d'Alpine. Pour en profiter, mettez à jour le conteneur
+(Unraid : *Check for updates* puis *apply update* ; Compose : `docker compose pull && docker compose up -d`).
+
 ## Publier une nouvelle version
 
 Chaque push sur `main` met à jour `latest`. Pour une version figée, créez une release GitHub

@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"   # reconstruction hebdomadaire : récupère les correctifs de sécurité de l'image de base
 
 permissions:
   contents: read
@@ -49,6 +51,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
+          pull: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

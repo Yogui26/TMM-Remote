@@ -1,4 +1,4 @@
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 
 LABEL org.opencontainers.image.title="TMM Remote" \
       org.opencontainers.image.description="Télécommande web tactile pour l'API HTTP de tinyMediaManager" \
