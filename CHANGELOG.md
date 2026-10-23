@@ -2,7 +2,7 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
-## [1.0.1] - 2026-10-23
+## [1.1.0] - 2026-10-23
 
 ### Ajouté
 - Journal : vue **lisible** du log de tinyMediaManager. Les étapes sont regroupées en séquences (mise à jour
