@@ -24,6 +24,8 @@ Pour compléter, l'appli peut lire (en lecture seule) vos médias et les logs de
   résultat film par film, ancien → nouveau nom, scores rejetés, annulations, alertes dédupliquées)
   ou en **log brut** (bascule 📖 / 🧾), avec filtres et suivi en direct : c'est là qu'on voit si un
   renommage a réellement eu lieu.
+- **État de tinyMediaManager** *(TMM 5.3.5 ou plus)* : pastille « inactif / travaille » en haut, fin de traitement
+  détectée, actions sur une fiche ciblées par identifiant TMDB / IMDB / TVDB, « marquer comme vu ».
 - **Réglages** : URL, clé API, langue des sous-titres, test de connexion, état des montages.
 
 ## Déploiement (Docker, recommandé)

@@ -2,6 +2,22 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [1.2.0] - 2026-10-30
+
+Fonctions de l'API de tinyMediaManager **5.3.5** (l'appli reste compatible avec les versions précédentes :
+ces fonctions n'apparaissent que si `GET /api/system` répond).
+
+### Ajouté
+- **État de tinyMediaManager en direct** (`GET /api/system`) : pastille « inactif / travaille · N en attente »
+  en haut de l'écran, tâches en cours dans le Journal, badge « terminé » sur les commandes envoyées et
+  notification à la fin du traitement.
+- Le suivi automatique du log dure désormais tant que tinyMediaManager travaille (au lieu de 2 minutes fixes).
+- **Ciblage par identifiant** (`tmdbId`, `imdbId`, `tvdbId`) pour les actions sur une fiche : plus besoin que
+  `TMM_MEDIA_PATH` corresponde au chemin vu par tinyMediaManager. Repli automatique sur le chemin du dossier
+  pour les fiches sans identifiant.
+- **Marquer comme vu / non vu** (`setWatched`) dans les fiches et dans le constructeur.
+- Le test de connexion indique la version de tinyMediaManager et les fonctions disponibles.
+
 ## [1.1.0] - 2026-10-23
 
 ### Ajouté

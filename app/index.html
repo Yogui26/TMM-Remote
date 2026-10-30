@@ -122,6 +122,10 @@ nav button{font-size:11px}
 .sc .ic .i{width:1.1em;height:1.1em;vertical-align:0}
 .po .i{color:var(--mut);opacity:.7}
 nav button .i{width:24px;height:24px;vertical-align:0}
+.tst{margin-left:auto;font-size:12px;font-weight:600;color:var(--mut);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.dot.busy{background:var(--warn);animation:pl 1s infinite}.dot.off{background:var(--err)}
+@keyframes pl{50%{opacity:.35}}
 </style>
 </head>
 <body>
@@ -150,7 +154,7 @@ const MODULES = {
   tvshow:   { label: '📺 Séries', path: 'tvshow' },
   movieset: { label: '📚 Sagas',  path: 'movieset' }
 };
-const SCOPE_LABEL = { new:'Nouveaux', all:'Tout', unscraped:'Non scrapés', dataSource:'Une source', path:'Un dossier', single:'Une source (n°)', show:'Une série', name:'Par titre' };
+const SCOPE_LABEL = { new:'Nouveaux', all:'Tout', unscraped:'Non scrapés', dataSource:'Une source', path:'Un dossier', single:'Une source (n°)', show:'Une série', name:'Par titre', tmdbId:'ID TMDB', imdbId:'ID IMDB', tvdbId:'ID TVDB' };
 const SCOPE_HINT = {
   single:'Numéro(s) de source, en commençant à 0 (ex. 0, 2).',
   dataSource:'Numéro de source (0, 1…) ou chemin complet. Un par ligne.',
@@ -172,7 +176,8 @@ const ARG = {
   cksum:      { k:'type', label:'Type de checksum', type:'select', opts:['crc32','phash','all'], def:'crc32' },
   collection: { k:'collection', label:'Collection', type:'bool', def:true },
   watched:    { k:'watched', label:'Vus', type:'bool', def:true },
-  rating:     { k:'rating', label:'Ma note', type:'bool', def:true }
+  rating:     { k:'rating', label:'Ma note', type:'bool', def:true },
+  seen:       { k:'watched', label:'Marquer comme vu', type:'bool', def:true }
 };
 const SC_ALL = ['new','all','unscraped','dataSource','path'];
 const SC_4   = ['new','all','dataSource','path'];
@@ -193,7 +198,8 @@ const COMMON = {
   cleanup:  A('cleanup','Nettoyer les fichiers inutiles','🧹',SC_ALL,[ARG.dryRun],true),
   post:     A('postProcess','Post-traitement','⚙️',SC_ALL),
   trakt:    A('syncTrakt','Sync Trakt','🔁',SC_ALL,[ARG.collection, ARG.watched, ARG.rating]),
-  simkl:    A('syncSimkl','Sync Simkl','🔁',SC_ALL)
+  simkl:    A('syncSimkl','Sync Simkl','🔁',SC_ALL),
+  seen:     Object.assign(A('setWatched','Vu / non vu','👁',SC_ALL,[ARG.seen]), { since: '5.3.5' })
 };
 const ACTIONS = {
   movie: [
@@ -202,13 +208,13 @@ const ACTIONS = {
     A('scrape','Scraper','🔍',SC_ALL,[ARG.scraper]),
     COMMON.ratings,
     A('assignMovieSet','Assigner aux sagas','📚',SC_ALL),
-    COMMON.trailer, COMMON.subs, COMMON.artwork, COMMON.rename, COMMON.exp, COMMON.nfo, COMMON.cleanup, COMMON.post, COMMON.trakt, COMMON.simkl
+    COMMON.seen, COMMON.trailer, COMMON.subs, COMMON.artwork, COMMON.rename, COMMON.exp, COMMON.nfo, COMMON.cleanup, COMMON.post, COMMON.trakt, COMMON.simkl
   ],
   tvshow: [
     A('update','Scanner les sources','🔄',['all','single','show','path']),
     COMMON.readNfo, COMMON.media, COMMON.cksum, COMMON.aspect,
     A('scrape','Scraper','🔍',SC_ALL),
-    COMMON.ratings, COMMON.trailer, COMMON.subs, COMMON.artwork,
+    COMMON.ratings, COMMON.seen, COMMON.trailer, COMMON.subs, COMMON.artwork,
     A('downloadTheme','Thème musical','🎵',SC_ALL,[ARG.onlyMissing]),
     COMMON.rename, COMMON.exp, COMMON.nfo, COMMON.cleanup, COMMON.post,
     COMMON.trakt, COMMON.simkl
@@ -279,6 +285,7 @@ const state = {
   item: null,
   logTab: 'cmd',
   logUntil: 0,
+  tmm: { supported: false, fails: 0, data: null, version: '', busyReq: false, err: false },
   logv: { lines: [], filter: 'all', live: false, loaded: false, busy: false, err: '', ts: 0, mode: 'read', view: null, open: {} }
 };
 const saveSettings = () => store.set('tmm.settings', state.settings);
@@ -366,9 +373,79 @@ async function testConnection() {
     const txt = await res.text(); let info = '';
     try { const j = JSON.parse(txt); info = j.info && j.info.title ? ' — ' + j.info.title + (j.info.version ? ' ' + j.info.version : '') : ''; } catch {}
     state.testMsg = res.ok ? '✓ Connecté (HTTP ' + res.status + ')' + info : '✗ HTTP ' + res.status + ' — vérifiez la clé API et l’URL.';
+    if (res.ok) {
+      state.tmm.fails = 0; await pollTmm();
+      state.testMsg += state.tmm.supported ? ' · tinyMediaManager ' + (state.tmm.version || '') + ' : état en direct et ciblage par identifiant disponibles' : ' · état en direct indisponible (nécessite tinyMediaManager 5.3.5 ou plus)';
+    }
   } catch (e) { state.testMsg = '✗ Injoignable : ' + e.message; }
   render();
 }
+
+/* ---------- état de tinyMediaManager (GET /api/system, TMM >= 5.3.5) ---------- */
+const isBusy = d => !!d && (d.busy !== undefined ? !!d.busy : (!!d.mainTaskRunning || d.queuedMainTasks > 0));
+const hasPending = () => state.log.some(e => e.status === 'ok' && !e.done && Date.now() - e.t < 1800000);
+function following() {
+  const T = state.tmm;
+  if (state.logv.live) return true;
+  return T.supported ? (isBusy(T.data) || hasPending()) : Date.now() < state.logUntil;
+}
+function fmtTask(t) {
+  if (t == null) return '';
+  if (typeof t === 'string') return t;
+  return t.name || t.title || t.description || t.text || JSON.stringify(t).slice(0, 80);
+}
+function taskList(d) {
+  const r = d && d.runningTasks;
+  if (Array.isArray(r)) return r.map(fmtTask).filter(Boolean);
+  return [];
+}
+function tmmLabel() {
+  const T = state.tmm, d = T.data;
+  if (!T.supported) return '';
+  if (T.err || !d) return { cls: 'off', txt: 'TMM injoignable' };
+  if (d.state === 'SHUTTING_DOWN') return { cls: 'busy', txt: 'TMM : arrêt en cours' };
+  if (isBusy(d)) { const q = d.queuedMainTasks > 0 ? ' · ' + d.queuedMainTasks + ' en attente' : ''; return { cls: 'busy', txt: 'TMM travaille' + q }; }
+  return { cls: 'idle', txt: 'TMM : inactif' };
+}
+function paintTmm() {
+  const el = $('#tmmstate'); if (!el) return;
+  const l = tmmLabel();
+  el.innerHTML = l ? `<span class="dot ${l.cls}"></span>${esc(l.txt)}` : '';
+  const card = $('#tmmcard'); if (card) card.innerHTML = tmmCardHtml();
+}
+function tmmCardHtml() {
+  const T = state.tmm, d = T.data; if (!T.supported || !d) return '';
+  const tasks = taskList(d), l = tmmLabel();
+  const extra = [d.version ? 'version ' + d.version : '', d.imageDownloadsRunning > 0 ? d.imageDownloadsRunning + ' image(s) en cours' : ''].filter(Boolean).join(' · ');
+  return `<div class="hint" style="margin:0 0 10px"><b>${esc(l.txt)}</b>${extra ? ' · ' + esc(extra) : ''}${tasks.length ? '<br>' + tasks.map(t => '• ' + esc(t)).join('<br>') : ''}</div>`;
+}
+async function pollTmm() {
+  const T = state.tmm; if (T.busyReq || T.fails >= 3) return; T.busyReq = true;
+  try {
+    const r = await fetch(apiUrl('system'), { headers: headers() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json(); const d = j && (j.data || j);
+    if (!d || typeof d !== 'object' || (d.state === undefined && d.busy === undefined && d.version === undefined)) throw new Error('format');
+    T.data = d; T.supported = true; T.fails = 0; T.err = false; T.version = d.version || '';
+    trackDone(d);
+  } catch {
+    if (T.supported) { T.err = true; T.data = null; } else T.fails++;
+  }
+  T.busyReq = false; paintTmm();
+}
+function trackDone(d) {
+  const busy = isBusy(d); let finished = false;
+  state.log.forEach(e => {
+    if (e.status !== 'ok' || e.done || Date.now() - e.t > 1800000) return;
+    if (busy) e.seen = true;
+    else if (e.seen || Date.now() - e.t > 20000) { e.done = Date.now(); finished = true; }
+  });
+  if (finished) {
+    saveLog(); toast('tinyMediaManager a terminé');
+    if (state.view === 'log') { state.logv.loaded = false; render(); } else if (state.view === 'home') render();
+  }
+}
+setInterval(() => { if (!document.hidden) pollTmm(); }, 3000);
 
 /* ---------- rendu ---------- */
 function toast(msg) {
@@ -392,6 +469,7 @@ const ICONS = {
   trash: [10, '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'],
   sliders: [225, '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'],
   wrench: [225, '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>'],
+  eye: [150, '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'],
   refresh: [215, '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 21v-5h5"/>'],
   search: [200, '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/>'],
   music: [310, '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'],
@@ -408,7 +486,7 @@ const ICONS = {
   down: [null, '<path d="M6 9l6 6 6-6"/>'],
   right: [null, '<path d="M9 18l6-6-6-6"/>']
 };
-const ICON_MAP = {"🎬": "film", "🎞": "film", "📺": "tv", "📚": "books", "📄": "file", "📝": "file", "ℹ": "info", "🔐": "lock", "📐": "ratio", "⭐": "star", "💬": "msg", "🖼": "image", "✏": "pencil", "📤": "upload", "📥": "download", "🧹": "trash", "⚙": "sliders", "🛠": "wrench", "🔁": "refresh", "🔄": "refresh", "↻": "refresh", "🔍": "search", "🔎": "search", "🎵": "music", "🗂": "folder", "📁": "folder", "🚀": "zap", "🏠": "home", "🕘": "clock", "📖": "book", "🧾": "term", "▶": "play", "✓": "check", "✅": "check", "✗": "x", "❌": "x", "⚠": "alert", "▾": "down", "▸": "right"};
+const ICON_MAP = {"👁": "eye", "🎬": "film", "🎞": "film", "📺": "tv", "📚": "books", "📄": "file", "📝": "file", "ℹ": "info", "🔐": "lock", "📐": "ratio", "⭐": "star", "💬": "msg", "🖼": "image", "✏": "pencil", "📤": "upload", "📥": "download", "🧹": "trash", "⚙": "sliders", "🛠": "wrench", "🔁": "refresh", "🔄": "refresh", "↻": "refresh", "🔍": "search", "🔎": "search", "🎵": "music", "🗂": "folder", "📁": "folder", "🚀": "zap", "🏠": "home", "🕘": "clock", "📖": "book", "🧾": "term", "▶": "play", "✓": "check", "✅": "check", "✗": "x", "❌": "x", "⚠": "alert", "▾": "down", "▸": "right"};
 const ICON_RE = new RegExp('(' + Object.keys(ICON_MAP).join('|') + ')\\uFE0F?', 'g');
 /* remplace les pictogrammes (emoji) d'un fragment HTML par des icônes SVG monochromes */
 function I(html) {
@@ -427,7 +505,7 @@ function navItems() {
 
 function render() {
   if (state.view === 'lib' && !hasLib()) state.view = 'home';
-  $('.title').innerHTML = I('🎞️ TMM Remote');
+  $('.title').innerHTML = I('🎞️ TMM Remote') + '<span id="tmmstate" class="tst"></span>';
   $('#seg').innerHTML = I(Object.entries(MODULES).map(([k, m]) =>
     `<button data-act="module" data-v="${k}" class="${state.module === k ? 'on' : ''}">${m.label}</button>`).join(''));
   $('#nav').innerHTML = I(navItems().map(([k, ic, l]) => {
@@ -445,6 +523,7 @@ function render() {
     const el = $('#tmmlog'); if (el) el.scrollTop = oldTop || el.scrollHeight;
     if (!state.logv.loaded && !state.logv.busy) { state.logv.loaded = true; loadLog(); }
   }
+  paintTmm();
 }
 
 /* ---------- bibliothèque (lecture seule) ---------- */
@@ -498,7 +577,18 @@ function vLib() {
   ${!list.length ? '<div class="empty">Aucun résultat.</div>' : ''}`;
 }
 
-const ITEM_ACTIONS = [['scrape','🔍 Scraper'],['downloadMissingArtwork','🖼️ Images manquantes'],['downloadSubtitle','💬 Sous-titres'],['rename','✏️ Renommer'],['writeNfo','📝 Écrire le NFO'],['readNfo','📄 Relire le NFO']];
+const ITEM_ACTIONS = [['scrape','🔍 Scraper'],['downloadMissingArtwork','🖼️ Images manquantes'],['downloadSubtitle','💬 Sous-titres'],['rename','✏️ Renommer'],['writeNfo','📝 Écrire le NFO'],['readNfo','📄 Relire le NFO'],
+  ['seen','👁 Marquer comme vu', 'setWatched', { watched: true }], ['unseen','👁 Marquer comme non vu', 'setWatched', { watched: false }]];
+const itemActions = () => ITEM_ACTIONS.filter(x => !x[2] || state.tmm.supported);
+/* cible d'une fiche : identifiant (TMM >= 5.3.5, indépendant des chemins) sinon chemin du dossier */
+function itemScope(it) {
+  const ids = (state.item && state.item.detail && state.item.detail.ids) || {};
+  if (state.tmm.supported) {
+    const order = it.kind === 'movie' ? [['tmdb', 'tmdbId'], ['imdb', 'imdbId']] : [['tvdb', 'tvdbId'], ['tmdb', 'tmdbId'], ['imdb', 'imdbId']];
+    for (const [k, n] of order) if (ids[k]) return { name: n, args: [String(ids[k])] };
+  }
+  return { name: 'path', args: [it.tmm_path] };
+}
 function fmtSize(n) { if (!n) return ''; const u = ['o','Ko','Mo','Go','To']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return n.toFixed(i > 1 ? 1 : 0) + ' ' + u[i]; }
 function vItem() {
   const b = state.item.base, d = state.item.detail || {}, kind = b.kind;
@@ -517,7 +607,7 @@ function vItem() {
     ${d.plot ? `<p style="margin:12px 0 0">${esc(d.plot)}</p>` : (state.item.detail ? '<div class="hint">Pas de synopsis (fiche non scrapée ?).</div>' : '<div class="hint">Chargement…</div>')}
     <div class="hint" style="word-break:break-all">📁 ${esc(b.folder)}<br>Chemin côté tinyMediaManager : ${esc(b.tmm_path)}</div>
     ${blocked ? '<div class="warn">Ce dossier contient plusieurs vidéos (ou la racine) : les actions ciblées sont désactivées pour ne pas toucher d’autres éléments.</div>'
-      : `<div class="acts">${ITEM_ACTIONS.map(([a, l]) => `<button class="btn" data-act="itemAction" data-v="${a}">${l}</button>`).join('')}</div>`}
+      : `<div class="acts">${itemActions().map(([a, l]) => `<button class="btn" data-act="itemAction" data-v="${a}">${l}</button>`).join('')}</div>`}
     ${kind === 'tvshow' && seasons ? `<details open><summary>Saisons (${(d.seasons || []).length})</summary>${seasons}</details>` : ''}
     ${files ? `<details><summary>Fichiers du dossier (${(d.files || []).length})</summary>${files}</details>` : ''}
     <div class="row"><button class="btn" data-act="closeItem">Fermer</button></div>
@@ -616,18 +706,18 @@ async function loadLog() {
 }
 setInterval(() => {
   if (document.hidden || state.view !== 'log' || state.logTab !== 'tmm' || !hasTmmLog()) return;
-  if (state.logv.live || Date.now() < state.logUntil) loadLog();
+  if (following()) loadLog();
 }, 3000);
 
 function vHome() {
   const list = scenarios(state.module);
   return `<h2>Lancer en un geste</h2>
   <div class="grid">${list.map((s, i) => `<button class="sc" data-act="scenario" data-i="${i}"><span class="ic">${s.icon}</span><span><b>${esc(s.title)}</b><small>${esc(s.desc)}</small></span></button>`).join('')}</div>
-  <p class="hint">Chaque scénario demande une confirmation et peut être modifié avant l’envoi. L’API de tinyMediaManager lance des tâches : l’avancement se suit dans tinyMediaManager lui-même.</p>`;
+  <p class="hint">Chaque scénario demande une confirmation et peut être modifié avant l’envoi. L’état de tinyMediaManager (inactif / travaille) s’affiche en haut ; le détail se suit dans le Journal.</p>`;
 }
 
 function vBuild() {
-  const mod = state.module, acts = ACTIONS[mod];
+  const mod = state.module, acts = ACTIONS[mod].filter(a => !a.since || state.tmm.supported);
   if (!state.draft || !findAction(mod, state.draft.action)) resetDraft(acts[0].id);
   const d = state.draft, a = findAction(mod, d.action), seq = state.steps[mod];
   const scopeBox = NEEDS_ARGS.includes(d.scope)
@@ -662,22 +752,23 @@ function vLog() {
 }
 function vTmmLog() {
   const V = state.logv, last = state.log[0], raw = V.mode === 'raw';
-  const lb = last ? (last.status === 'ok' ? 'acceptée (HTTP ' + last.http + ')' : last.status === 'wait' ? 'en cours d’envoi…' : 'échec de l’envoi') : '';
+  const lb = last ? (last.status === 'ok' ? 'acceptée (HTTP ' + last.http + ')' + (last.done ? ', terminée' : state.tmm.supported ? ', en cours de traitement' : '') : last.status === 'wait' ? 'en cours d’envoi…' : 'échec de l’envoi') : '';
   const f = (v, l) => `<button class="chip ${V.filter === v ? 'on' : ''}" data-act="logFilter" data-v="${v}">${l}</button>`;
   const m = (v, l) => `<button class="chip ${V.mode === v ? 'on' : ''}" data-act="logMode" data-v="${v}">${l}</button>`;
   return `<div class="card"><h3>Log de tinyMediaManager</h3>
+    <div id="tmmcard">${tmmCardHtml()}</div>
     ${last ? `<div class="hint" style="margin:0 0 10px">Dernière commande : ${new Date(last.t).toLocaleTimeString('fr-FR')} · ${lb}. « Acceptée » veut seulement dire mise en file d’attente : le résultat réel se lit ci-dessous.</div>` : ''}
     <div class="chips" style="margin-bottom:10px">${m('read', '📖 Lisible')}${m('raw', '🧾 Log brut')}</div>
     <div class="chips">${raw ? f('all', 'Tout') + f('warn', 'Erreurs et alertes') + f('rename', 'Renommage') + f('scrape', 'Scrape') : f('all', 'Tout') + f('warn', 'À vérifier') + f('rename', 'Renommage') + f('scrape', 'Scrape')}</div>
     <button class="tg" data-act="logLive"><span>Suivre en direct (toutes les 3 s)</span><span class="sw ${V.live ? 'on' : ''}"></span></button>
     ${raw ? `<pre id="tmmlog" class="tlog" style="margin-top:10px">${logHtml()}</pre>` : `<div id="tmmread" style="margin-top:10px">${readHtml()}</div>`}
-    <div class="hint" id="logts">${V.ts ? 'Mis à jour à ' + new Date(V.ts).toLocaleTimeString('fr-FR') : ''}${Date.now() < state.logUntil ? ' · suivi automatique après l’envoi d’une commande' : ''}</div>
+    <div class="hint" id="logts">${V.ts ? 'Mis à jour à ' + new Date(V.ts).toLocaleTimeString('fr-FR') : ''}${following() && !V.live ? ' · suivi automatique pendant que TMM travaille' : ''}</div>
     <div class="row"><button class="btn" data-act="logRefresh">↻ Actualiser</button></div></div>`;
 }
 function vCmdLog() {
   if (!state.log.length) return '<div class="empty">Aucune commande envoyée pour l’instant.</div>';
   return `<div class="row" style="margin:0"><button class="btn d" data-act="clearLog">Vider le journal</button></div>` + state.log.map((e, i) => {
-    const b = e.status === 'ok' ? '<span class="badge b-ok">OK ' + e.http + '</span>' : e.status === 'wait' ? '<span class="badge b-wait">en cours…</span>' : '<span class="badge b-err">Échec' + (e.http ? ' ' + e.http : '') + '</span>';
+    const b = e.status === 'ok' ? '<span class="badge b-ok">OK ' + e.http + '</span>' + (e.done ? ' <span class="badge b-ok">terminé</span>' : state.tmm.supported ? ' <span class="badge b-wait">en cours…</span>' : '') : e.status === 'wait' ? '<span class="badge b-wait">en cours…</span>' : '<span class="badge b-err">Échec' + (e.http ? ' ' + e.http : '') + '</span>';
     const open = state.openLog === i;
     const lines = e.steps.map(s => esc(human(e.mod, s).title)).join('<br>');
     return `<div class="log"><button class="log" style="all:unset;display:block;width:100%;cursor:pointer" data-act="openLog" data-i="${i}">
@@ -720,9 +811,11 @@ const H = {
   openItem(d) { openItem(d.id); },
   closeItem() { state.item = null; render(); },
   itemAction(d) {
-    const it = state.item.base, step = { action: d.v, scope: { name: 'path', args: [it.tmm_path] } };
+    const it = state.item.base, def = ITEM_ACTIONS.find(x => x[0] === d.v);
+    const step = { action: def[2] || d.v, scope: itemScope(it) };
     if (d.v === 'downloadSubtitle') step.args = { language: state.settings.lang || 'fr' };
-    const label = ITEM_ACTIONS.find(x => x[0] === d.v)[1];
+    if (def[3]) step.args = { ...def[3] };
+    const label = def[1];
     state.item = null; state.sheet = { mod: it.kind, steps: [step], title: label + ' — ' + it.title }; render();
   },
   libFilter(d) { state.lib.filter = d.v; state.lib.limit = 60; render(); },
