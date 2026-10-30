@@ -581,9 +581,10 @@ const ITEM_ACTIONS = [['scrape','🔍 Scraper'],['downloadMissingArtwork','🖼�
   ['seen','👁 Marquer comme vu', 'setWatched', { watched: true }], ['unseen','👁 Marquer comme non vu', 'setWatched', { watched: false }]];
 const itemActions = () => ITEM_ACTIONS.filter(x => !x[2] || state.tmm.supported);
 /* cible d'une fiche : identifiant (TMM >= 5.3.5, indépendant des chemins) sinon chemin du dossier */
-function itemScope(it) {
+function itemScope(it, action) {
   const ids = (state.item && state.item.detail && state.item.detail.ids) || {};
-  if (state.tmm.supported) {
+  // le renommage vise toujours le dossier exact : deux éditions d'un même film partagent le même identifiant
+  if (state.tmm.supported && action !== 'rename') {
     const order = it.kind === 'movie' ? [['tmdb', 'tmdbId'], ['imdb', 'imdbId']] : [['tvdb', 'tvdbId'], ['tmdb', 'tmdbId'], ['imdb', 'imdbId']];
     for (const [k, n] of order) if (ids[k]) return { name: n, args: [String(ids[k])] };
   }
@@ -812,7 +813,7 @@ const H = {
   closeItem() { state.item = null; render(); },
   itemAction(d) {
     const it = state.item.base, def = ITEM_ACTIONS.find(x => x[0] === d.v);
-    const step = { action: def[2] || d.v, scope: itemScope(it) };
+    const step = { action: def[2] || d.v, scope: itemScope(it, d.v) };
     if (d.v === 'downloadSubtitle') step.args = { language: state.settings.lang || 'fr' };
     if (def[3]) step.args = { ...def[3] };
     const label = def[1];

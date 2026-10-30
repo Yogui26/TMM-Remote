@@ -14,7 +14,8 @@ ces fonctions n'apparaissent que si `GET /api/system` répond).
 - Le suivi automatique du log dure désormais tant que tinyMediaManager travaille (au lieu de 2 minutes fixes).
 - **Ciblage par identifiant** (`tmdbId`, `imdbId`, `tvdbId`) pour les actions sur une fiche : plus besoin que
   `TMM_MEDIA_PATH` corresponde au chemin vu par tinyMediaManager. Repli automatique sur le chemin du dossier
-  pour les fiches sans identifiant.
+  pour les fiches sans identifiant. Le **renommage** reste toujours ciblé par chemin : deux éditions d'un même
+  film partagent le même identifiant et seraient renommées ensemble.
 - **Marquer comme vu / non vu** (`setWatched`) dans les fiches et dans le constructeur.
 - Le test de connexion indique la version de tinyMediaManager et les fonctions disponibles.
 
